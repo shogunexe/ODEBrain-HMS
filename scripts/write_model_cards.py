@@ -12,6 +12,7 @@ import json
 import math
 import re
 import sys
+import tempfile
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -308,6 +309,8 @@ def check_run(model_name, run_name, context, results_root):
 
 
 def card_markdown(card):
+    if card.get("training_protocol") == "train_val_fixed_epoch_refit":
+        return refit_card_markdown(card)
     name = card["model"]
     modes = card["input_modalities"]
     count = card["split_counts"]
@@ -364,10 +367,235 @@ def card_markdown(card):
     return "\n".join(lines)
 
 
-def write_cards(runs, manifest, metadata, split_summary, results_root, output_dir):
+def verified_refit_comparison(runs, comparison_path, results_root, context):
+    """Recompute the five-run summary before trusting a published comparison."""
+    from scripts.refit_final import summarize_refits
     require(set(runs) == set(MODELS), "Specify exactly one run for each of five deep models")
+    resolved = {name: str(Path(path).resolve() if Path(path).is_absolute()
+                          else (ROOT / path).resolve()) for name, path in runs.items()}
+    require(len(set(resolved.values())) == len(MODELS), "Refit runs must be distinct")
+    comparison_path = source_path(comparison_path)
+    reported = json_file(comparison_path)
+    reject_smoke(reported, "Refit comparison")
+    results_root = (Path(results_root) if Path(results_root).is_absolute()
+                    else ROOT / results_root).resolve()
+    with tempfile.TemporaryDirectory(prefix="hms_refit_card_verify_") as temporary:
+        computed_path = Path(temporary) / "verified.json"
+        summarize_refits(resolved, computed_path, results_root)
+        computed = json_file(computed_path)
+    require(reported == computed,
+            "Refit comparison differs from independently recomputed test evidence")
+    require(computed["split_hash"] == context["split_hash"] and
+            computed["manifest_sha256"] == context["sha256"] and
+            computed["n_windows"] == context["counts"]["test"][0] and
+            computed["n_patients"] == context["counts"]["test"][1],
+            "Refit comparison does not match the audited test manifest")
+    return reported, comparison_path
+
+
+def check_refit_run(model_name, run_name, row, context, results_root,
+                    comparison_path):
+    """Package a previously reverified final refit without mixing source metrics."""
+    from src.data.hms import CLASSES, ELECTRODES, SAMPLE_RATE, WINDOW_SECONDS
+    run_dir = (Path(run_name) if Path(run_name).is_absolute() else ROOT / run_name).resolve()
+    require(run_dir == Path(row["run_dir"]).resolve() and row["name"] == model_name,
+            "Refit comparison row points to another model or run")
+    files = {name: source_path(str(run_dir / name)) for name in (
+        "config.json", "completed.json", "window_snapshot.json",
+        "validation_record.json", "normalizer_record.json", "graph_normalizer.npz",
+        "final.pt")}
+    config = json_file(files["config.json"])
+    completed = json_file(files["completed.json"])
+    selection = json_file(files["validation_record.json"])
+    require(config.get("schema_version") == "hms_final_refit_v1" and
+            config.get("smoke_subset") is False and
+            config.get("model", {}).get("name") == model_name and
+            config.get("refit", {}).get("task") == "classification" and
+            config.get("refit", {}).get("training_split") == "train+val" and
+            config.get("refit", {}).get("test_used_for_selection") is False and
+            completed.get("experiment_status") == "formal_refit",
+            "Refit card requires formal train+val classification evidence")
+    same_sha(sha256(files["final.pt"]), row["checkpoint_sha256"], "Refit checkpoint")
+    same_sha(sha256(files["final.pt"]), completed.get("final_checkpoint_sha256"),
+             "Refit completion checkpoint")
+    require(selection.get("test_used_for_selection") is False and
+            selection.get("selection_split") == "val" and
+            selection.get("fixed_refit_epochs") == config["refit"]["fixed_epochs"] and
+            selection.get("source_best_checkpoint_sha256") ==
+            config["refit"]["source_best_checkpoint_sha256"],
+            "Refit selection record differs from final protocol")
+    result_root = (Path(results_root) if Path(results_root).is_absolute()
+                   else ROOT / results_root).resolve()
+    result_dir = result_root / run_dir.name
+    metric_path = source_path(str(result_dir / "test_metrics.json"))
+    prediction_path = source_path(str(result_dir / "test_predictions.csv"))
+    same_sha(sha256(metric_path), row["test_metrics_sha256"], "Refit test metrics")
+    same_sha(sha256(prediction_path), row["test_predictions_sha256"],
+             "Refit test predictions")
+    metric = json_file(metric_path)
+    reject_smoke(metric, "Refit test metrics")
+    require(metric.get("training_protocol") == "train_val_fixed_epoch_refit" and
+            metric.get("test_used_for_selection") is False and
+            metric.get("split") == "test", "Refit test metric protocol mismatch")
+    for key in ("kl_window_mean", "kl_patient_equal_mean", "macro_f1"):
+        finite(metric.get(key), "Refit test " + key, 0)
+    ci = metric.get("kl_patient_bootstrap", {}).get("ci95")
+    require(isinstance(ci, list) and len(ci) == 2 and
+            all(type(x) in (int, float) and math.isfinite(x) for x in ci) and
+            0 <= ci[0] <= ci[1], "Refit patient bootstrap CI missing or invalid")
+    source_run = Path(selection["source_run"]).resolve()
+    source_best = source_path(selection["source_best_checkpoint"])
+    same_sha(sha256(source_best), selection["source_best_checkpoint_sha256"],
+             "Validation-selected source checkpoint")
+    require(source_best.parent == source_run and
+            source_run == Path(config["refit"]["source_run"]).resolve(),
+            "Refit source run changed")
+    init_run = config["refit"].get("init_refit_run")
+    pretraining = None
+    if init_run:
+        init_path = source_path(str(Path(init_run) / "final.pt"))
+        same_sha(sha256(init_path), config["refit"].get("init_refit_checkpoint_sha256"),
+                 "Refitted forecast pretraining checkpoint")
+        pretraining = {"run_dir": path_string(Path(init_run)),
+                       "checkpoint": path_string(init_path), "sha256": sha256(init_path),
+                       "task": "forecast", "training_split": "train+val"}
+    kwargs = config["model"].get("kwargs", {})
+    require(kwargs.get("num_classes") == 6, "Refit model is not six-class")
+    modalities = {"raw_eeg": model_name in ("tcn", "fusion", "odebrain_inspired_hms"),
+                  "spectrogram": model_name in ("spectrogram_cnn", "fusion"),
+                  "graph": model_name in ("graph_gru", "odebrain_inspired_hms")}
+    return {"schema_version": "hms_model_card_refit_v1", "model": model_name,
+            "status": "formal", "task": "offline_six_class_eeg_classification",
+            "training_protocol": "train_val_fixed_epoch_refit",
+            "run_dir": path_string(run_dir), "checkpoint": path_string(files["final.pt"]),
+            "weights_sha256": sha256(files["final.pt"]),
+            "config": path_string(files["config.json"]),
+            "config_sha256": sha256(files["config.json"]),
+            "completion": path_string(files["completed.json"]),
+            "completion_sha256": sha256(files["completed.json"]),
+            "window_snapshot": path_string(files["window_snapshot.json"]),
+            "window_snapshot_sha256": sha256(files["window_snapshot.json"]),
+            "validation_record": path_string(files["validation_record.json"]),
+            "validation_record_sha256": sha256(files["validation_record.json"]),
+            "graph_normalizer": path_string(files["graph_normalizer.npz"]),
+            "graph_normalizer_sha256": sha256(files["graph_normalizer.npz"]),
+            "normalizer_record": path_string(files["normalizer_record.json"]),
+            "normalizer_record_sha256": sha256(files["normalizer_record.json"]),
+            "comparison": path_string(comparison_path),
+            "comparison_sha256": sha256(comparison_path),
+            "source_run": path_string(source_run),
+            "source_checkpoint": path_string(source_best),
+            "source_checkpoint_sha256": sha256(source_best),
+            "selection": selection,
+            "fixed_refit_epochs": config["refit"]["fixed_epochs"],
+            "refit_seed": config["refit"]["seed"],
+            "pretraining": pretraining,
+            "manifest": path_string(context["path"]),
+            "manifest_file_sha256": context["sha256"],
+            "split_summary": path_string(context["summary_path"]),
+            "split_summary_sha256": context["summary_sha256"],
+            "split_hash": context["split_hash"],
+            "metadata": path_string(context["metadata_path"]),
+            "metadata_sha256": context["metadata_sha256"],
+            "split_counts": {name: {"windows": value[0], "patients": value[1]}
+                             for name, value in context["counts"].items()},
+            "input_modalities": modalities, "input_channels": list(ELECTRODES),
+            "sample_rate_hz": SAMPLE_RATE, "window_seconds": WINDOW_SECONDS,
+            "label_region_seconds": [20, 30], "classes": list(CLASSES),
+            "model_kwargs": kwargs, "training": config["training"],
+            "evaluation": {"test": {"path": path_string(metric_path),
+                                     "sha256": sha256(metric_path),
+                                     "predictions": path_string(prediction_path),
+                                     "predictions_sha256": sha256(prediction_path),
+                                     "n_windows": metric["n_windows"],
+                                     "n_patients": metric["n_patients"],
+                                     "kl_window_mean": metric["kl_window_mean"],
+                                     "kl_patient_equal_mean": metric["kl_patient_equal_mean"],
+                                     "macro_f1": metric["macro_f1"],
+                                     "patient_bootstrap_ci95": ci}}}
+
+
+def refit_card_markdown(card):
+    counts = card["split_counts"]
+    metric = card["evaluation"]["test"]
+    selection = card["selection"]
+    lines = ["# {} — HMS 最终重训模型卡".format(card["model"]), "",
+             "## 用途与身份", "",
+             "- 状态：正式完整数据评估；六类离线 EEG 活动分类。",
+             "- 模型版本：`{}`（最终 checkpoint SHA256）。".format(card["weights_sha256"]),
+             "- 输入来源：HMS 训练集；分类使用 50 秒上下文，专家标注对应中央 20–30 秒。",
+             "- 本实现的 ODE 模型属于 ODEBrain-inspired HMS 改造；不代表官方模型已在 HMS 上验证。" if card["model"] == "odebrain_inspired_hms" else
+             "- 模型属于本项目基线，结果只对应此处固定患者划分。", "",
+             "## 数据与划分", "",
+             "- 患者级互斥划分哈希：`{}`。".format(card["split_hash"]),
+             "- Manifest 文件 SHA256：`{}`。".format(card["manifest_file_sha256"]),
+             "- 初训训练：{} 窗口 / {} 患者；初训验证：{} 窗口 / {} 患者；最终重训合计：{} 窗口 / {} 患者；独立测试：{} 窗口 / {} 患者。".format(
+                 counts["train"]["windows"], counts["train"]["patients"],
+                 counts["val"]["windows"], counts["val"]["patients"],
+                 counts["train"]["windows"] + counts["val"]["windows"],
+                 counts["train"]["patients"] + counts["val"]["patients"],
+                 counts["test"]["windows"], counts["test"]["patients"]),
+             "- 软标签由六类专家票数归一化；测试患者未进入轮数选择或最终重训。", "",
+             "## 输入与预处理", "",
+             "- 采样率：{} Hz；19 个 EEG 导联（不含 EKG）：{}。".format(
+                 card["sample_rate_hz"], ", ".join(card["input_channels"])),
+             "- 通道：原始 EEG={}；同窗 STFT 频谱={}；1 秒图帧={}。".format(
+                 *[card["input_modalities"][key] for key in ("raw_eeg", "spectrogram", "graph")]),
+             "- 以 `eeg_label_offset_seconds` 裁出 50 秒；短内部缺失最多插值 20 采样点，长缺失保留掩码并填零；超过 5% 缺失或恒定导联的窗口不进入有效集。",
+             "- 频谱分支：STFT 256 采样点窗、64 采样点步长，幅值 `log1p`。图分支：每导联 5 个频带的 1 秒节点属性，相关系数作为统计关联代理边。",
+             ("- 最终图归一化参数仅从训练+验证患者拟合；文件 SHA256：`{}`。" if card["input_modalities"]["graph"] else
+              "- 此模型不使用图输入；恒等图归一化占位文件 SHA256：`{}`。")
+             .format(card["graph_normalizer_sha256"]),
+             "", "## 训练与评估", "",
+             "- 初训从验证集选择第 {} 轮（从 1 计数），依据 `{}`；源 checkpoint SHA256：`{}`。".format(
+                 card["fixed_refit_epochs"], selection["selection_monitor"],
+                 card["source_checkpoint_sha256"]),
+             "- 最终模型在训练+验证患者上固定训练 {} 轮；不在重训阶段重新选择轮数。".format(
+                 card["fixed_refit_epochs"]),
+             "- 重训随机种子：{}；配置：`{}`；配置 SHA256：`{}`。".format(
+                 card["refit_seed"], card["config"], card["config_sha256"]),
+             "- 训练参数：`{}`。".format(json.dumps(card["training"], ensure_ascii=False, sort_keys=True)),
+             "- 主指标：KL(target || prediction)，逐窗口平均；患者等权 KL 与 macro F1 为补充。"]
+    if card["pretraining"]:
+        lines += ["- 初始化权重来自同样以训练+验证患者重训的预测任务：`{}`；SHA256：`{}`。".format(
+            card["pretraining"]["checkpoint"], card["pretraining"]["sha256"])]
+    lines += ["", "| 划分 | 窗口 | 患者 | 窗口 KL ↓ | 患者等权 KL ↓ | Macro F1 |",
+              "|---|---:|---:|---:|---:|---:|",
+              "| test | {} | {} | {:.6f} | {:.6f} | {:.6f} |".format(
+                  metric["n_windows"], metric["n_patients"],
+                  metric["kl_window_mean"], metric["kl_patient_equal_mean"],
+                  metric["macro_f1"]), "",
+              "- 测试预测逐窗口覆盖冻结测试集；指标与预测已由 `scripts/refit_final.py summarize` 重算核对。",
+              "- 五模型正式对比表：`{}`；SHA256：`{}`。".format(
+                  card["comparison"], card["comparison_sha256"]),
+              "- 结果只对应此处固定患者划分、预处理和文件哈希；跨中心、设备、人群泛化未经验证。",
+              "", "## 限制", "",
+              "- 只用于离线研究展示；不能用于临床诊断、实时发作预警或患者治疗。",
+              "- 专家票数存在分歧；脑电相关边与潜在 ODE 轨迹不构成生理因果解释。",
+              "", "## 本地复现", "", "```bash",
+              ".venv/bin/python scripts/refit_final.py train --source-run {} --run-dir artifacts/refit/reproduce_{}{}".format(
+                  card["source_run"], card["model"],
+                  " --init-refit-run " + card["pretraining"]["run_dir"] if card["pretraining"] else ""),
+              ".venv/bin/python scripts/refit_final.py evaluate --run-dir artifacts/refit/reproduce_{}".format(card["model"]),
+              "```", "",
+              "权重仅位于本地 `{}`；本脚本不发布权重或生成下载链接。".format(card["checkpoint"]), ""]
+    return "\n".join(lines)
+
+
+def write_refit_cards(runs, manifest, metadata, split_summary, results_root,
+                      output_dir, comparison):
     context = manifest_context(manifest, metadata, split_summary)
-    cards = {name: check_run(name, runs[name], context, results_root) for name in MODELS}
+    summary, comparison_path = verified_refit_comparison(runs, comparison,
+                                                         results_root, context)
+    rows = {row["name"]: row for row in summary["rows"]}
+    require(set(rows) == set(MODELS) and len(summary["rows"]) == len(MODELS),
+            "Refit comparison does not contain five unique models")
+    cards = {name: check_refit_run(name, runs[name], rows[name], context,
+                                   results_root, comparison_path) for name in MODELS}
+    return _write_card_files(cards, output_dir)
+
+
+def _write_card_files(cards, output_dir):
     output = Path(output_dir)
     output = output if output.is_absolute() else ROOT / output
     output.mkdir(parents=True, exist_ok=True)
@@ -384,6 +612,13 @@ def write_cards(runs, manifest, metadata, split_summary, results_root, output_di
     return output
 
 
+def write_cards(runs, manifest, metadata, split_summary, results_root, output_dir):
+    require(set(runs) == set(MODELS), "Specify exactly one run for each of five deep models")
+    context = manifest_context(manifest, metadata, split_summary)
+    cards = {name: check_run(name, runs[name], context, results_root) for name in MODELS}
+    return _write_card_files(cards, output_dir)
+
+
 def parse_runs(items):
     runs = {}
     for item in items:
@@ -398,16 +633,28 @@ def parse_runs(items):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--run", action="append", required=True, metavar="MODEL=PATH")
+    parser.add_argument("--protocol", choices=("initial", "refit"), default="initial",
+                        help="Refit uses final.pt and an independently reverified comparison")
     parser.add_argument("--manifest", default="data/curated/split_manifest.csv")
     parser.add_argument("--metadata", default="data/raw/train.csv")
     parser.add_argument("--split-summary", default="data/curated/split_manifest.json")
-    parser.add_argument("--results-root", default="results")
-    parser.add_argument("--output-dir", default="docs/model_cards")
+    parser.add_argument("--results-root")
+    parser.add_argument("--output-dir")
+    parser.add_argument("--comparison", default="results/refit/final_comparison.json")
     args = parser.parse_args()
     try:
-        print(write_cards(parse_runs(args.run), args.manifest, args.metadata,
-                          args.split_summary, args.results_root, args.output_dir))
-    except (CardError, KeyError, TypeError, RuntimeError) as exc:
+        runs = parse_runs(args.run)
+        if args.protocol == "refit":
+            print(write_refit_cards(runs, args.manifest, args.metadata,
+                                    args.split_summary,
+                                    args.results_root or "results/refit",
+                                    args.output_dir or "docs/model_cards_refit",
+                                    args.comparison))
+        else:
+            print(write_cards(runs, args.manifest, args.metadata,
+                              args.split_summary, args.results_root or "results",
+                              args.output_dir or "docs/model_cards"))
+    except (CardError, KeyError, TypeError, RuntimeError, ValueError, FileNotFoundError) as exc:
         parser.exit(2, "Formal model cards rejected: {}\n".format(exc))
 
 
