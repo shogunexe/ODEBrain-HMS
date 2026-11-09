@@ -1,0 +1,16 @@
+{
+  "seed": 42,
+  "sha256": "f334b0e31f5faf520f85a2d4c79631caf7edef2102460a8bcd629fc2a699a82f",
+  "split_patient_counts": {
+    "excluded": 85,
+    "test": 389,
+    "train": 1245,
+    "val": 311
+  },
+  "split_window_counts": {
+    "excluded": 213,
+    "test": 22638,
+    "train": 67114,
+    "val": 16835
+  }
+}

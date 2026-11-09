@@ -1,0 +1,24 @@
+model:
+  name: odebrain_inspired_hms
+  kwargs:
+    node_features: 5
+    num_nodes: 19
+    hidden_dim: 64
+    raw_dim: 32
+    num_classes: 6
+    rk4_step_seconds: 0.25
+training:
+  epochs: 20
+  batch_size: 8
+  lr: 0.001
+  weight_decay: 0.01
+  classification_weight: 0.0
+  forecast_weight: 1.0
+  patience: 6
+  grad_clip: 1.0
+data:
+  manifest: data/curated/split_manifest.csv
+  graph_cache_dir: data/training/graph_forecast_v2
+  task: forecast
+  forecast_cut_seconds: 5
+  forecast_horizons: [1, 3, 5]

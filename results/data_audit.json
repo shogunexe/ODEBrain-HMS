@@ -1,0 +1,19 @@
+{
+  "audit_reason_counts": {
+    "constant_channel": 2,
+    "ok": 106587,
+    "too_many_missing_samples": 211
+  },
+  "mean_window_missing_fraction": 0.0005662968164794008,
+  "metadata_patient_count": 1950,
+  "metadata_rows": 106800,
+  "patient_count": 1945,
+  "quality_checked_windows": 106800,
+  "raw_eeg_bytes_found": 18591558917,
+  "raw_eeg_files_found": 17089,
+  "schema_version": "hms_manifest_v1",
+  "spectrogram_offset_field": "spectrogram_label_offset_seconds",
+  "unique_annotated_context_seconds": 1364658.0,
+  "unique_raw_recording_seconds": 1369008.0,
+  "valid_windows": 106587
+}

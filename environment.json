@@ -1,0 +1,23 @@
+{
+  "checked_at": "2026-11-05T11:08:47+08:00",
+  "host": "GPU-V100-2",
+  "os_kernel": "3.10.0-693.el7.x86_64",
+  "logical_cpus": 40,
+  "ram_gib": 251,
+  "gpus": [{"index": 0, "name": "Tesla V100S-PCIE-32GB", "memory_mib": 32768}, {"index": 1, "name": "Tesla V100S-PCIE-32GB", "memory_mib": 32768}],
+  "driver": "550.163.01",
+  "driver_cuda": "12.4",
+  "default_python": "3.6.8",
+  "alternate_python": "3.8.9",
+  "java": "1.8.0_275",
+  "spark_available": false,
+  "hdfs_available": false,
+  "kaggle_credentials_available": true,
+  "kaggle_competition_rules_accepted": true,
+  "pyspark_version": "3.4.4",
+  "torch_version": "2.0.1+cu117",
+  "gpu_busy_at_2026_11_05_18_22": true,
+  "github_cli_authenticated": true,
+  "shared_filesystem": true,
+  "free_storage_tib_approx": 50
+}

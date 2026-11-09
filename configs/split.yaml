@@ -1,0 +1,6 @@
+manifest_csv: data/curated/manifest.csv
+split_csv: data/curated/split_manifest.csv
+seed: 42
+test_fraction: 0.20
+val_fraction_of_dev: 0.20
+folds: 3

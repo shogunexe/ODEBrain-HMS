@@ -1,0 +1,154 @@
+{
+  "schema_version": "hms_forecast_comparison_v1",
+  "generated_utc": "2026-11-07T06:18:08.489154+00:00",
+  "experiment_status": "real_data_smoke",
+  "smoke_subset": true,
+  "synthetic": false,
+  "evaluation_scope": "frozen_smoke_val",
+  "split": "val",
+  "split_hash": "93f9d4dcf48227a7e4160e5a718ee955d550a3490ef4c87fd13e947912d5b9b8",
+  "manifest_sha256": "137b98cafc4f14d20f352d0bf265d26e1dc5754357315fcb619150b65047c68a",
+  "window_count": 12,
+  "patient_count": 12,
+  "n_windows": 12,
+  "n_patients": 12,
+  "window_ids_sha256": "9f27d5e194c067e8cfe6b2eb33e062744367c381106dabb57f12449784adbaae",
+  "patient_ids_sha256": "dd7c8b22c23f2028458e1cd1079e3ce1d420e5be7a45672daf4cb18d48729a03",
+  "forecast_cut_seconds": 5,
+  "horizons_seconds": [
+    1,
+    3,
+    5
+  ],
+  "target": "future electrode-node log1p band-power attributes",
+  "mae_units": "log1p_band_power",
+  "validity_rule": "future node valid AND node observed at least once before cut; each of five features counted",
+  "methods": {
+    "odebrain_inspired_hms": [
+      {
+        "horizon_seconds": 1,
+        "mae": 2.512784395944082,
+        "patient_macro_mae": 2.5127843959440823,
+        "valid_node_feature_values": 1140,
+        "patients_with_valid_target": 12
+      },
+      {
+        "horizon_seconds": 3,
+        "mae": 2.62791358527514,
+        "patient_macro_mae": 2.62791358527514,
+        "valid_node_feature_values": 1140,
+        "patients_with_valid_target": 12
+      },
+      {
+        "horizon_seconds": 5,
+        "mae": 2.5202454806550554,
+        "patient_macro_mae": 2.5202454806550554,
+        "valid_node_feature_values": 1140,
+        "patients_with_valid_target": 12
+      }
+    ],
+    "graph_gru": [
+      {
+        "horizon_seconds": 1,
+        "mae": 1.1255557693063134,
+        "patient_macro_mae": 1.1255557693063134,
+        "valid_node_feature_values": 1140,
+        "patients_with_valid_target": 12
+      },
+      {
+        "horizon_seconds": 3,
+        "mae": 1.204348775268565,
+        "patient_macro_mae": 1.204348775268565,
+        "valid_node_feature_values": 1140,
+        "patients_with_valid_target": 12
+      },
+      {
+        "horizon_seconds": 5,
+        "mae": 1.4099041683711684,
+        "patient_macro_mae": 1.409904168371168,
+        "valid_node_feature_values": 1140,
+        "patients_with_valid_target": 12
+      }
+    ],
+    "persistence": [
+      {
+        "horizon_seconds": 1,
+        "mae": 0.8649105668715875,
+        "patient_macro_mae": 0.8649105668715875,
+        "valid_node_feature_values": 1140,
+        "patients_with_valid_target": 12
+      },
+      {
+        "horizon_seconds": 3,
+        "mae": 0.9054513213492388,
+        "patient_macro_mae": 0.9054513213492387,
+        "valid_node_feature_values": 1140,
+        "patients_with_valid_target": 12
+      },
+      {
+        "horizon_seconds": 5,
+        "mae": 1.058239427320031,
+        "patient_macro_mae": 1.058239427320031,
+        "valid_node_feature_values": 1140,
+        "patients_with_valid_target": 12
+      }
+    ]
+  },
+  "rows": [
+    {
+      "name": "odebrain_inspired_hms",
+      "mae_by_horizon_s": {
+        "1": 2.512784395944082,
+        "3": 2.62791358527514,
+        "5": 2.5202454806550554
+      }
+    },
+    {
+      "name": "graph_gru",
+      "mae_by_horizon_s": {
+        "1": 1.1255557693063134,
+        "3": 1.204348775268565,
+        "5": 1.4099041683711684
+      }
+    },
+    {
+      "name": "persistence",
+      "mae_by_horizon_s": {
+        "1": 0.8649105668715875,
+        "3": 0.9054513213492388,
+        "5": 1.058239427320031
+      }
+    }
+  ],
+  "provenance": {
+    "manifest": "/export/home/limianchong/CSproject/data/curated/split_manifest.csv",
+    "graph_cache_dir": null,
+    "ode": {
+      "run_dir": "/export/home/limianchong/CSproject/artifacts/runs/ode_pretrain_strict_smoke",
+      "model_name": "odebrain_inspired_hms",
+      "checkpoint": "/export/home/limianchong/CSproject/artifacts/runs/ode_pretrain_strict_smoke/best.pt",
+      "checkpoint_sha256": "b924e98053e5afcc0ae20e5917ad7d578e8b6eb5ac0d05b5bc082751259c7e93",
+      "checkpoint_epoch": 1,
+      "config_sha256": "149231e4c7bd59debfcb465f5924b0cc2b12762193f4f4fddac46258f24a1907",
+      "graph_normalizer_sha256": "f92d08512620e4c787490a4a1df3ef9cd61a42f2f6daccdd8a938f4e55bc100f",
+      "training_manifest_sha256": "137b98cafc4f14d20f352d0bf265d26e1dc5754357315fcb619150b65047c68a",
+      "initial_pretrain_checkpoint_sha256": null,
+      "training_task": "forecast",
+      "smoke_subset": true
+    },
+    "graph_gru": {
+      "run_dir": "/export/home/limianchong/CSproject/artifacts/runs/graph_gru_pretrain_strict_smoke",
+      "model_name": "graph_gru",
+      "checkpoint": "/export/home/limianchong/CSproject/artifacts/runs/graph_gru_pretrain_strict_smoke/best.pt",
+      "checkpoint_sha256": "a4ffd8a2be28c176abc976ea90313e764f48444a48be06da18994786b78a32be",
+      "checkpoint_epoch": 1,
+      "config_sha256": "6d3f5936e10c8b8235a5a1a1e3c97ac5e4fc4902d769866ecf18d4c0b7f2fa43",
+      "graph_normalizer_sha256": "f92d08512620e4c787490a4a1df3ef9cd61a42f2f6daccdd8a938f4e55bc100f",
+      "training_manifest_sha256": "137b98cafc4f14d20f352d0bf265d26e1dc5754357315fcb619150b65047c68a",
+      "initial_pretrain_checkpoint_sha256": null,
+      "training_task": "forecast",
+      "smoke_subset": true
+    },
+    "persistence": "last valid observed node attribute repeated at each horizon"
+  }
+}

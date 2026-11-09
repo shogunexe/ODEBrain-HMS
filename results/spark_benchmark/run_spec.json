@@ -1,0 +1,21 @@
+{
+  "manifest_sha256": "685b4ee306a37b73ce01a3c4671eeed11850c6c0ef2c6c11131c79646d7f09c0",
+  "fractions": [
+    0.1,
+    0.3,
+    1.0
+  ],
+  "workers": [
+    1,
+    4
+  ],
+  "repeats": 3,
+  "seconds": 50,
+  "methods": [
+    "multiprocessing",
+    "serial",
+    "spark"
+  ],
+  "synthetic": false,
+  "experiment_status": "formal"
+}

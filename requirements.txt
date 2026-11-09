@@ -1,0 +1,17 @@
+numpy>=1.23,<2
+pandas>=1.5,<2.1
+scipy>=1.9,<1.11
+scikit-learn>=1.1,<1.4
+pyarrow>=10,<18
+pyspark==3.4.4
+torch==2.0.1
+PyYAML>=6,<7
+matplotlib>=3.6,<3.8
+plotly>=5.18,<6
+streamlit>=1.25,<1.32
+kaleido==0.2.1
+python-pptx>=0.6.23,<1.1
+pytest>=7,<9
+kaggle>=1.7,<2
+# Server Python 3.8 is linked against OpenSSL 1.0.2; urllib3 2 cannot import.
+urllib3>=1.26,<2

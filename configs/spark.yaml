@@ -1,0 +1,6 @@
+spark_features:
+  manifest: data/curated/split_manifest.csv
+  output: data/features/eeg_features_v1
+  master: local[4]
+  partitions: 4
+  event_log_dir: artifacts/spark-events

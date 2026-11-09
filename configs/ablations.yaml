@@ -1,0 +1,17 @@
+schema_version: ode_ablation_plan_v1
+seed: 42
+pretrain_config: configs/models/odebrain_pretrain.yaml
+finetune_config: configs/models/odebrain_inspired_hms.yaml
+run_root: artifacts/runs/ode_ablations_v1
+generated_config_dir: artifacts/ablations_v1/configs
+output: results/ablation.json
+arms:
+  - name: pretrained_rk4_025
+    initialization: pretrain
+    rk4_step_seconds: 0.25
+  - name: scratch_rk4_025
+    initialization: scratch
+    rk4_step_seconds: 0.25
+  - name: pretrained_rk4_050
+    initialization: pretrain
+    rk4_step_seconds: 0.5

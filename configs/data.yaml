@@ -1,0 +1,9 @@
+metadata_csv: data/raw/train.csv
+eeg_dir: data/raw/train_eegs
+manifest_csv: data/curated/manifest.csv
+audit_json: data/curated/audit.json
+sample_rate: 200
+window_seconds: 50
+label_start_in_window_seconds: 20
+label_end_in_window_seconds: 30
+electrodes: [Fp1, F3, C3, P3, F7, T3, T5, O1, Fz, Cz, Pz, Fp2, F4, C4, P4, F8, T4, T6, O2]
