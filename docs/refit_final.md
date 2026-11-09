@@ -68,4 +68,18 @@ env LD_LIBRARY_PATH=/export/usr/python/3.8.9/lib:${LD_LIBRARY_PATH:-} \
 
 测试结果写入 `results/refit/<run目录名>/test_metrics.json` 和 `test_predictions.csv`。`summarize` 会重新核对五个 refit 的源 run、最终 checkpoint、split hash、完整测试窗口/患者集以及逐窗口概率文件，才生成统一主表。
 
-**正式报告主模型表应使用这五个 refit 的测试结果。** 初训 `val` 指标只用于固定轮数和超参数，不充当最终测试效果；初训 `test` 结果若保留，必须单独命名为探索性对照。现有 `scripts/write_model_cards.py` 与 `scripts/prepare_formal_slides.py` 的门槛仍绑定初训 `best.pt` 和初训 test 文件，尚不支持 refit `final.pt`。因此在这些门槛完成专门适配和重新核对前，不能将 refit 结果直接放入现有模型卡或正式 PPT，也不能在同一张主表混用初训和 refit 行。`final_comparison.json` 是独立、可追溯的 refit 汇总，供后续适配使用。
+**正式报告主模型表应使用这五个 refit 的测试结果。** 初训 `val` 指标只用于固定轮数和超参数，不充当最终测试效果；初训 `test` 结果若保留，必须单独命名为探索性对照。`scripts/write_model_cards.py --protocol refit` 独立重核 `final_comparison.json`，读取 `final.pt` 并把正式卡写入 `docs/model_cards_refit/`；初训卡仍位于 `docs/model_cards/`。PPT 的正式主表也必须使用同一 refit 汇总，不能混用初训和 refit 行。
+
+## 最终 ODE 重训模型的动力学图
+
+ODE 分类 refit 和 ODE 预测预训练 refit 均完成后，可从最终分类 `final.pt` 导出动力学案例：
+
+```bash
+env LD_LIBRARY_PATH=/export/usr/python/3.8.9/lib:${LD_LIBRARY_PATH:-} \
+  .venv/bin/python scripts/export_dynamics.py \
+  --checkpoint artifacts/refit/odebrain_inspired_hms/final.pt \
+  --manifest data/curated/split_manifest.csv \
+  --output results/refit/dynamics --device cuda
+```
+
+导出器会复核分类 refit 的完成记录、固定训练轮数和最终 checkpoint，沿 `refit.init_refit_run` 复核对应的开发集预测预训练 refit，并检查来源 checkpoint 的 SHA-256、同一患者划分、正的预测损失权重及预测头权重一致。来源标准化也由 refit 完成记录核对。任何来源缺失或权重变化都会拒绝导出。图中的 PCA 投影仍只用原 `train` 窗口拟合，案例来自预测任务合格的 `val/test` 窗口；导出的 `training_lineage` 标记 `train_val_fixed_epoch_refit`，并记录两个 checkpoint 的哈希。

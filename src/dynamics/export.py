@@ -51,6 +51,72 @@ def load_trained_model(checkpoint_path, device="cpu", rk4_step_seconds=None):
     return model, checkpoint
 
 
+def _verified_forecast_source(checkpoint_path, snapshot, model, manifest_csv,
+                              device, rk4_step_seconds):
+    """Resolve and verify the forecast head retained by a classifier."""
+    if snapshot.get("schema_version") == "hms_final_refit_v1":
+        # The final classifier deliberately drops the initial run's init_checkpoint.
+        # Its forecast head must come from the separately refitted pretrain run.
+        from scripts.refit_final import _check_final_run, _refit_pretrain
+
+        checked = _check_final_run(checkpoint_path.parent)
+        if (checked["checkpoint_path"] != checkpoint_path or
+                checked["config"] != snapshot or
+                snapshot.get("refit", {}).get("task") != "classification" or
+                snapshot.get("model", {}).get("name") != "odebrain_inspired_hms"):
+            raise ValueError("Dynamics checkpoint is not the verified final ODE classifier refit")
+        init_dir = snapshot["refit"].get("init_refit_run")
+        if not init_dir:
+            raise ValueError("Final ODE classifier has no forecast pretraining refit")
+        init = _refit_pretrain(init_dir, checked["source"])
+        source_path = init["checkpoint"]
+        source_hash = snapshot["refit"].get("init_refit_checkpoint_sha256")
+        if (source_hash != init["checkpoint_sha256"] or
+                Path(init["path"]).resolve() != Path(init_dir).resolve()):
+            raise ValueError("Final forecast pretrain refit lineage changed")
+        protocol = "train_val_fixed_epoch_refit"
+    else:
+        source_name = snapshot.get("init_checkpoint")
+        source_hash = snapshot.get("init_checkpoint_sha256")
+        if not source_name or not source_hash:
+            raise ValueError("Forecast head needs positive loss weight or a verified pretrained checkpoint lineage")
+        source_path = Path(source_name).expanduser()
+        if not source_path.is_absolute():
+            source_path = Path(__file__).resolve().parents[2] / source_path
+        protocol = None
+    source_path = Path(source_path).resolve()
+    if not source_path.is_file() or sha256_file(source_path) != source_hash:
+        raise ValueError("Pretrained forecast checkpoint is missing or its hash changed")
+    source_model, source_checkpoint = load_trained_model(source_path, device, rk4_step_seconds)
+    source_config = source_checkpoint.get("config", {})
+    source_training = source_config.get("training", {})
+    source_manifest_digest = source_config.get("manifest_sha256")
+    if protocol and (source_config.get("schema_version") != "hms_final_refit_v1" or
+                     source_config.get("refit", {}).get("task") != "forecast" or
+                     source_config.get("model") != snapshot.get("model") or
+                     source_manifest_digest != snapshot.get("manifest_sha256") or
+                     source_config.get("smoke_subset") is not False or
+                     source_config != init["config"]):
+        raise ValueError("Forecast source is not the verified final pretraining refit")
+    if source_manifest_digest is not None and sha256_file(manifest_csv) != source_manifest_digest:
+        raise ValueError("Forecast pretrain manifest differs from the export manifest")
+    if source_manifest_digest is None and source_config.get("smoke_subset") is False:
+        raise ValueError("Formal forecast source lacks a bound manifest digest")
+    if float(source_training.get("forecast_weight", 0)) <= 0:
+        raise ValueError("Source forecast head was not trained with positive forecast loss")
+    final_state = model.state_dict()
+    source_state = source_model.state_dict()
+    for name in ("forecast_head.weight", "forecast_head.bias"):
+        if not torch.equal(final_state[name].detach().cpu(), source_state[name].detach().cpu()):
+            raise ValueError("Forecast head differs from verified pretrained source")
+    lineage = {"forecast_head_source": str(source_path),
+               "forecast_head_source_sha256": source_hash}
+    if protocol:
+        lineage["training_protocol"] = protocol
+        lineage["forecast_pretrain_refit_run"] = str(Path(init_dir).resolve())
+    return source_checkpoint, lineage, source_config.get("smoke_subset") is not False
+
+
 def _infer(model, sample, device):
     with torch.no_grad():
         logits, dynamics = model(_tensor_batch(sample, device), True)
@@ -247,34 +313,14 @@ def export_dynamics(checkpoint_path, manifest_csv, output_dir, device="cpu",
     source_smoke_subset = False
     if float(training_config.get("forecast_weight", 0)) > 0:
         lineage["forecast_head_source"] = "same_checkpoint"
+        if snapshot.get("schema_version") == "hms_final_refit_v1":
+            raise ValueError("Final ODE classifier refit must verify its forecast pretraining source")
+        forecast_config = snapshot
     else:
-        source_name = snapshot.get("init_checkpoint")
-        source_hash = snapshot.get("init_checkpoint_sha256")
-        if not source_name or not source_hash:
-            raise ValueError("Forecast head needs positive loss weight or a verified pretrained checkpoint lineage")
-        source_path = Path(source_name).expanduser()
-        if not source_path.is_absolute():
-            source_path = Path(__file__).resolve().parents[2] / source_path
-        source_path = source_path.resolve()
-        if not source_path.is_file() or sha256_file(source_path) != source_hash:
-            raise ValueError("Pretrained forecast checkpoint is missing or its hash changed")
-        source_model, source_checkpoint = load_trained_model(source_path, device, rk4_step_seconds)
-        source_training = source_checkpoint.get("config", {}).get("training", {})
-        source_manifest_digest = source_checkpoint.get("config", {}).get("manifest_sha256")
-        if source_manifest_digest is not None and sha256_file(manifest_csv) != source_manifest_digest:
-            raise ValueError("Forecast pretrain manifest differs from the export manifest")
-        if source_manifest_digest is None and source_checkpoint.get("config", {}).get("smoke_subset") is False:
-            raise ValueError("Formal forecast source lacks a bound manifest digest")
-        source_smoke_subset = source_checkpoint.get("config", {}).get("smoke_subset") is not False
-        if float(source_training.get("forecast_weight", 0)) <= 0:
-            raise ValueError("Source forecast head was not trained with positive forecast loss")
-        final_state = model.state_dict()
-        source_state = source_model.state_dict()
-        for name in ("forecast_head.weight", "forecast_head.bias"):
-            if not torch.equal(final_state[name].detach().cpu(), source_state[name].detach().cpu()):
-                raise ValueError("Forecast head differs from verified pretrained source")
-        lineage["forecast_head_source"] = str(source_path)
-        lineage["forecast_head_source_sha256"] = source_hash
+        source_checkpoint, source_lineage, source_smoke_subset = _verified_forecast_source(
+            checkpoint_path, snapshot, model, manifest_csv, device, rk4_step_seconds)
+        lineage.update(source_lineage)
+        forecast_config = source_checkpoint.get("config", {})
     formal_ready = (file_coverage == 1.0 and full_metadata_rows == len(table)
                     and snapshot.get("smoke_subset") is False and not source_smoke_subset)
     provenance = "real_hms_checkpoint" if formal_ready else "real_hms_smoke"
@@ -298,7 +344,6 @@ def export_dynamics(checkpoint_path, manifest_csv, output_dir, device="cpu",
     with np.load(str(graph_normalizer), allow_pickle=False) as z:
         normalizer_mean = z["mean"].astype(np.float32)
         normalizer_std = z["std"].astype(np.float32)
-    forecast_config = snapshot if float(training_config.get("forecast_weight", 0)) > 0 else source_checkpoint.get("config", {})
     forecast_cache = forecast_config.get("data", {}).get("graph_cache_dir")
     if formal_ready and not forecast_cache:
         raise ValueError("Formal dynamics export requires the forecast eligibility cache")
