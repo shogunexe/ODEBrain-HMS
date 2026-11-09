@@ -50,24 +50,30 @@ LD_LIBRARY_PATH=/export/usr/python/3.8.9/lib:${LD_LIBRARY_PATH:-} \
   "split_summary": "data/curated/split_manifest.json",
   "feature_summary": "data/features/eeg_features_v1_summary.json",
   "spark_metrics": "results/spark_baselines/metrics.json",
-  "deep_metrics": {
-    "tcn": "results/tcn/test_metrics.json",
-    "spectrogram_cnn": "results/spectrogram_cnn/test_metrics.json",
-    "fusion": "results/fusion/test_metrics.json",
-    "graph_gru": "results/graph_gru/test_metrics.json",
-    "odebrain_inspired_hms": "results/ode_finetune/test_metrics.json"
-  },
+  "refit_comparison": "results/refit/final_comparison.json",
   "benchmark_runs": "results/spark_benchmark/runs.json",
   "benchmark_summary": "results/spark_benchmark/summary.json",
   "ablation": "results/formal_ablation.json",
   "forecast_comparison": "results/forecast_comparison.json",
-  "dynamics_index": "results/dynamics/result_index.json",
+  "dynamics_index": "results/dynamics_refit/result_index.json",
   "ui_capture": "results/formal_ui_capture.json",
   "resources": "results/formal_resources.json"
 }
 ```
 
-实际审计与特征汇总路径以运行命令输出为准。预测图缓存使用 `data/training/graph_forecast_v2` 的逐窗口 eligibility 与按 split 汇总；旧 v1 缓存不作正式证据。准备器检查全量 metadata/EEG 覆盖、审计与患者互斥、统一 split hash、Spark 特征与 LR/RF、五种深度模型的完整测试评估及 checkpoint、全量 Spark benchmark、ODE 动力学与相同 checkpoint。图预测比较须核对原分类测试窗口数、预测 eligible/excluded 数、原因计数、eligible ID 哈希和 v2 缓存索引哈希；`n_windows` 是预测 eligible 子集数量。任何嵌套的 smoke 或 synthetic 标记均使生成失败。第 4、5、7、8、9、13–23 页的 PNG 在 `results/figures/formal_slides/` 生成，最后才写 `results/slides_evidence.json`，记录原始输入与 PNG 的 SHA256。正式图全部基于实测输入；动力学图和界面图复制经过校验的 PNG。
+公开仓库或权重链接尚待发布审核时，可用同一完整实验输入（省略 `resources`）生成**本地预览**。预览仍要求全部数据、模型、测试预测、基准、消融、未来图、最终 ODE 动力学和正式界面截图通过上述实验门禁；仅第 23 页改为“待发布审核”，并在 24 页逐页显示“LOCAL PREVIEW · 待发布审核 · 非正式交付”。产物文件名与正式稿分开，不能作为正式提交：
+
+```bash
+LD_LIBRARY_PATH=/export/usr/python/3.8.9/lib:${LD_LIBRARY_PATH:-} \
+  .venv/bin/python scripts/prepare_formal_slides.py \
+  --inputs results/formal_delivery_inputs.json --preview
+.venv/bin/python scripts/build_slides.py --preview
+scripts/export_slides_pdf.sh "$PWD/slides/ODEBrain_LOCAL_PREVIEW_pending_publication.pptx" "$PWD/slides"
+```
+
+`--final` 仍必须读取经 HTTP 200 验证的公开仓库和权重链接；预览证据清单不能用于 `--final`。
+
+实际审计与特征汇总路径以运行命令输出为准。预测图缓存使用 `data/training/graph_forecast_v2` 的逐窗口 eligibility 与按 split 汇总；旧 v1 缓存不作正式证据。分类主表只读取 `results/refit/final_comparison.json`：五个深度模型均在 train+val 上按初训验证选出的固定轮数重训，随后对同一完整测试集评估。准备器调用 refit 汇总器重新核对源初训、最终 `final.pt`、逐窗口预测、指标、患者与窗口全集，并要求正式动力学索引的 checkpoint 哈希等于 refit ODE 的 `final.pt`。初训 `best.pt` 的测试指标不得混入分类主表。Spark LR/RF 仍为训练集基线；消融与图预测若来自初训，会在第 15–16 页明确标注。图预测比较须核对原分类测试窗口数、预测 eligible/excluded 数、原因计数、eligible ID 哈希和 v2 缓存索引哈希；`n_windows` 是预测 eligible 子集数量。任何嵌套的 smoke 或 synthetic 标记均使生成失败。第 4、5、7、8、9、13–23 页的 PNG 在 `results/figures/formal_slides/` 生成，最后才写 `results/slides_evidence.json`，记录原始输入与 PNG 的 SHA256。正式图全部基于实测输入；动力学图和界面图复制经过校验的 PNG。
 
 以下四个补充输入尚需由正式实验与实际发布取得，不能由 smoke 案例拼凑：
 
@@ -105,7 +111,7 @@ formal_resources.json:
 
 准备器只校验这些补充 JSON 的结构、有限数值与哈希。消融和未来图预测指标仍须人工与原始预测逐项核对；资源的 HTTP 状态须由实际访问核实。准备器不运行实验、不下载数据、不导出 PDF。
 
-正式稿生成命令为 `python3 scripts/build_slides.py --final`。该命令读取 `results/slides_evidence.json`：顶层须有 `experiment_status: "formal"` 和统一的 `split_hash`；第 4、5、7、8、9、13–23 页逐页须有 `image`、`source_file`、对应的 `image_sha256` 与 `source_sha256`、同一个 `split_hash`、正整数 `n_patients`/`n_windows`、`model_version`、`experiment_status: "formal"` 和 `smoke_subset: false`。文件须位于项目内且哈希匹配；JSON 来源文件若自报 smoke 状态会被拒绝。缺项时命令报错，不生成正式稿。
+正式稿生成命令为 `python3 scripts/build_slides.py --final`。该命令读取 `results/slides_evidence.json`：顶层须有 `experiment_status: "formal"`、统一的 `split_hash` 和经哈希绑定的 refit 主表；第 4、5、7、8、9、13–23 页逐页须有 `image`、`source_file`、对应的 `image_sha256` 与 `source_sha256`、同一个 `split_hash`、正整数 `n_patients`/`n_windows`、`model_version`、`experiment_status: "formal"` 和 `smoke_subset: false`。第 9、13、14、22 页还须绑定同一个 refit 主表及 `train_val_fixed_epoch_refit` 协议。文件须位于项目内且哈希匹配；JSON 来源文件若自报 smoke 状态会被拒绝。缺项时命令报错，不生成正式稿。
 
 图应由正式评估文件导出，且图中必须显式标识单位、分组、模型、样本来源；单靠 JSON 中写路径不能证明图内容正确。正式版制作时还需人工核对结果与图源、划分一致性及公开链接。封面及方法页需按实际实现状态改写。任何未验证的数值和占位语不得进入正式 PDF。
 

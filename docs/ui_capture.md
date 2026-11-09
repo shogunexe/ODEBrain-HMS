@@ -23,6 +23,6 @@ LD_LIBRARY_PATH=/export/usr/python/3.8.9/lib:${LD_LIBRARY_PATH:-} \
 
 当前 manifest 与原始 EEG 已更新，但现有 ODE 案例和模型结果仍来自较早的真实小子集，且正式交付输入尚不完整。截图默认写入 `artifacts/smoke/ui_capture.png` 和同目录的 `ui_capture.json`；JSON 中 `experiment_status="smoke"`、实际 manifest split hash、PNG SHA256、Chrome 版本、中文字体验证、绘制图数量和未通过正式门禁的原因都可复查。工具会在 smoke PNG 右上角加 `REAL HMS SMOKE · 非正式证据`，`artifacts/smoke/ui_ode_capture.png` 的轨迹图还带应用自身水印。**这些图不能用于正式 PPT 证据页。**
 
-正式状态须由 `results/formal_delivery_inputs.json` 指向的完整正式产物通过 `scripts/prepare_formal_slides.py` 的数据审计、患者划分、Spark、深度模型、对照、动力学等门禁；工具跳过其中需要截图本身的 UI 门禁，以避免循环依赖。同时实际 `split_manifest.csv`、其摘要哈希和动力学索引 split hash 必须一致。正式通过后，默认写 `results/formal_ui.png` 与 `results/formal_ui_capture.json`，后者的 `image` 和 `split_hash` 可供正式幻灯片准备器读取。若缺少任一正式结果或发现 smoke/synthetic，状态只能是 smoke；程序拒绝把 smoke 输出写成 `formal_*` 文件名。
+正式状态须由 `results/formal_delivery_inputs.json` 指向的完整正式产物通过 `scripts/prepare_formal_slides.py` 的数据审计、患者划分、Spark、五模型 train+val 固定轮数 refit 主表、对照、最终 ODE `final.pt` 动力学等门禁；工具跳过其中需要截图本身的 UI 门禁，以避免循环依赖。refit 主表须重新核对逐窗口测试预测、完整测试覆盖和 checkpoint 哈希，动力学索引须绑定 refit ODE checkpoint。同时实际 `split_manifest.csv`、其摘要哈希和动力学索引 split hash 必须一致。正式通过后，默认写 `results/formal_ui.png` 与 `results/formal_ui_capture.json`，后者的 `image` 和 `split_hash` 可供正式幻灯片准备器读取。若缺少任一正式结果或发现 smoke/synthetic，状态只能是 smoke；程序拒绝把 smoke 输出写成 `formal_*` 文件名。
 
 若截图失败，工具不写 PNG 或元数据。常见原因是服务未启动、页面没有所需图、Chrome 前端报错、中文字体缺失、正式结果哈希不一致。截图工具只读取实验文件，不训练模型，也不把页面存在当成正式模型结果。

@@ -135,7 +135,9 @@ def _split_information(results_root):
                 reasons.append("split summary 哈希与当前 manifest 不一致")
         except (OSError, ValueError) as exc:
             reasons.append("split summary 不可读取：{}".format(exc))
-    dynamics = results_root / "dynamics/result_index.json"
+    dynamics = results_root / "dynamics_refit/result_index.json"
+    if not dynamics.is_file():
+        dynamics = results_root / "dynamics/result_index.json"
     if dynamics.is_file():
         try:
             index = json.loads(dynamics.read_text(encoding="utf-8"))

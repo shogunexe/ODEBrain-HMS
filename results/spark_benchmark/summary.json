@@ -1,0 +1,134 @@
+[
+  {
+    "subset": "subset_010",
+    "method": "serial",
+    "workers": 1,
+    "median_end_to_end_seconds": 454.0179963109549,
+    "min_seconds": 453.9167918639723,
+    "max_seconds": 456.2987228918355,
+    "repeats": 3,
+    "synthetic": false,
+    "experiment_status": "formal"
+  },
+  {
+    "subset": "subset_010",
+    "method": "multiprocessing",
+    "workers": 4,
+    "median_end_to_end_seconds": 120.33051767991856,
+    "min_seconds": 119.77419157209806,
+    "max_seconds": 121.98598161106929,
+    "repeats": 3,
+    "synthetic": false,
+    "experiment_status": "formal"
+  },
+  {
+    "subset": "subset_010",
+    "method": "spark",
+    "workers": 1,
+    "median_end_to_end_seconds": 504.4871105607599,
+    "min_seconds": 474.2762301901821,
+    "max_seconds": 595.8912117949221,
+    "repeats": 3,
+    "synthetic": false,
+    "experiment_status": "formal"
+  },
+  {
+    "subset": "subset_010",
+    "method": "spark",
+    "workers": 4,
+    "median_end_to_end_seconds": 253.22025688691065,
+    "min_seconds": 178.75779297202826,
+    "max_seconds": 321.2425198738929,
+    "repeats": 3,
+    "synthetic": false,
+    "experiment_status": "formal"
+  },
+  {
+    "subset": "subset_030",
+    "method": "serial",
+    "workers": 1,
+    "median_end_to_end_seconds": 1249.9687988350634,
+    "min_seconds": 1249.5890907829162,
+    "max_seconds": 1251.802500196034,
+    "repeats": 3,
+    "synthetic": false,
+    "experiment_status": "formal"
+  },
+  {
+    "subset": "subset_030",
+    "method": "multiprocessing",
+    "workers": 4,
+    "median_end_to_end_seconds": 323.26541261188686,
+    "min_seconds": 315.40496378415264,
+    "max_seconds": 326.31432489911094,
+    "repeats": 3,
+    "synthetic": false,
+    "experiment_status": "formal"
+  },
+  {
+    "subset": "subset_030",
+    "method": "spark",
+    "workers": 1,
+    "median_end_to_end_seconds": 1263.8079514971469,
+    "min_seconds": 1248.1090421869885,
+    "max_seconds": 1738.482187674148,
+    "repeats": 3,
+    "synthetic": false,
+    "experiment_status": "formal"
+  },
+  {
+    "subset": "subset_030",
+    "method": "spark",
+    "workers": 4,
+    "median_end_to_end_seconds": 878.0357459688094,
+    "min_seconds": 532.3016619249247,
+    "max_seconds": 895.7274206848815,
+    "repeats": 3,
+    "synthetic": false,
+    "experiment_status": "formal"
+  },
+  {
+    "subset": "subset_100",
+    "method": "serial",
+    "workers": 1,
+    "median_end_to_end_seconds": 4063.0828343478497,
+    "min_seconds": 4060.619379401207,
+    "max_seconds": 4066.5904466339853,
+    "repeats": 3,
+    "synthetic": false,
+    "experiment_status": "formal"
+  },
+  {
+    "subset": "subset_100",
+    "method": "multiprocessing",
+    "workers": 4,
+    "median_end_to_end_seconds": 1045.8704402968287,
+    "min_seconds": 1022.6918101040646,
+    "max_seconds": 1121.3655977540184,
+    "repeats": 3,
+    "synthetic": false,
+    "experiment_status": "formal"
+  },
+  {
+    "subset": "subset_100",
+    "method": "spark",
+    "workers": 1,
+    "median_end_to_end_seconds": 4042.5945404418744,
+    "min_seconds": 4036.8812460841145,
+    "max_seconds": 4081.1415525281336,
+    "repeats": 3,
+    "synthetic": false,
+    "experiment_status": "formal"
+  },
+  {
+    "subset": "subset_100",
+    "method": "spark",
+    "workers": 4,
+    "median_end_to_end_seconds": 2146.1956667141058,
+    "min_seconds": 1429.6896431089845,
+    "max_seconds": 2149.7134610167705,
+    "repeats": 3,
+    "synthetic": false,
+    "experiment_status": "formal"
+  }
+]

@@ -10,7 +10,8 @@ from unittest import mock
 import pandas as pd
 import torch
 
-from scripts.refit_final import (_check_final_run, _make_dev_dataset, _plan,
+from scripts.refit_final import (_check_final_run, _forecast_eligible_ids,
+                                 _make_dev_dataset, _plan,
                                  _refit_snapshot, _source_run, summarize_refits,
                                  train_refit)
 from src.cli import file_sha256, make_model
@@ -58,6 +59,34 @@ def make_source(directory):
 
 
 class FinalRefitTests(unittest.TestCase):
+    def test_forecast_refit_uses_only_cache_eligible_development_ids(self):
+        table = pd.DataFrame([
+            {"window_id": "t_ok", "split": "train", "audit_reason": "ok", "patient_id": "p1"},
+            {"window_id": "t_bad", "split": "train", "audit_reason": "ok", "patient_id": "p1"},
+            {"window_id": "v_ok", "split": "val", "audit_reason": "ok", "patient_id": "p2"},
+            {"window_id": "v_bad", "split": "val", "audit_reason": "ok", "patient_id": "p2"},
+            {"window_id": "test_ok", "split": "test", "audit_reason": "ok", "patient_id": "p3"},
+        ])
+        ids = {"train": ["t_ok", "t_bad"], "val": ["v_ok", "v_bad"],
+               "test": ["test_ok"]}
+        cache = mock.Mock(eligibility={"t_ok": "ok", "t_bad": "history_constant_channel",
+                                      "v_ok": "ok", "v_bad": "future_constant_channel",
+                                      "test_ok": "ok"})
+        config = {"data": {"graph_cache_dir": "forecast_cache", "task": "forecast"},
+                  "manifest_sha256": "x"}
+        with mock.patch("scripts.refit_final.GraphCacheReader", return_value=cache):
+            eligible = _forecast_eligible_ids(config, Path("manifest.csv"), table, ids)
+        self.assertEqual(eligible, {"train": ["t_ok"], "val": ["v_ok"],
+                                    "test": ["test_ok"]})
+        source = {"manifest": Path("manifest.csv"), "name": "odebrain_inspired_hms",
+                  "task": "forecast", "config": config, "table": table, "ids": eligible}
+        fake_dataset = mock.Mock(rows=table.loc[table.window_id == "t_ok"].copy())
+        with mock.patch("scripts.refit_final.HMSWindowDataset", return_value=fake_dataset):
+            result = _make_dev_dataset(source, None)
+        self.assertEqual(result.rows.window_id.tolist(), ["t_ok", "v_ok"])
+        self.assertEqual(_refit_snapshot(dict(source, split_hash="x"))['train_dev'],
+                         ["t_ok", "v_ok"])
+
     def test_source_best_epoch_freezes_budget_and_dev_only(self):
         with tempfile.TemporaryDirectory() as temporary:
             source_path = make_source(temporary)

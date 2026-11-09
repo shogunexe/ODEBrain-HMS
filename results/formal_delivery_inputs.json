@@ -1,0 +1,16 @@
+{
+  "manifest": "data/curated/split_manifest.csv",
+  "metadata": "data/raw/train.csv",
+  "audit": "data/curated/audit.json",
+  "split_summary": "data/curated/split_manifest.json",
+  "feature_summary": "data/features/eeg_features_v1_summary.json",
+  "spark_metrics": "results/spark_baselines/metrics.json",
+  "refit_comparison": "results/refit/final_comparison.json",
+  "benchmark_runs": "results/spark_benchmark/runs.json",
+  "benchmark_summary": "results/spark_benchmark/summary.json",
+  "ablation": "results/ablation.json",
+  "forecast_comparison": "results/refit/forecast_comparison.json",
+  "dynamics_index": "results/dynamics_refit/result_index.json",
+  "ui_capture": "results/formal_ui_capture.json",
+  "resources": "results/formal_resources.json"
+}

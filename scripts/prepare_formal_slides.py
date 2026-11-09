@@ -13,6 +13,7 @@ import math
 import re
 import shutil
 import sys
+import tempfile
 import textwrap
 from pathlib import Path
 
@@ -201,33 +202,73 @@ def validate_spark_models(bundle, counts, dependencies):
 
 
 def validate_deep(bundle, manifest_path, split_hash, counts, dependencies):
-    models = bundle.get("deep_metrics", {})
-    need(all(name in models for name in DEEP_MODELS), "Missing required deep model evaluation")
+    """Recompute the five-model refit summary before accepting headline results."""
+    from scripts.refit_final import summarize_refits
+
+    need("deep_metrics" not in bundle,
+         "Formal slides must use the refit comparison, not initial-run deep_metrics")
+    path, comparison = formal_json(bundle["refit_comparison"], "Final refit comparison", dependencies)
+    need(comparison.get("schema_version") == "hms_final_refit_comparison_v1" and
+         comparison.get("experiment_status") == "formal" and
+         comparison.get("training_protocol") == "train_val_fixed_epoch_refit" and
+         comparison.get("split") == "test" and
+         comparison.get("smoke_subset") is False and
+         comparison.get("synthetic") is False and
+         comparison.get("test_used_for_selection") is False,
+         "Headline comparison is not a formal train+val fixed-epoch refit")
+    same_hash(comparison.get("split_hash"), split_hash, "Final refit comparison")
+    need(comparison.get("manifest_sha256") == digest(manifest_path),
+         "Refit comparison uses another manifest")
     test_n, test_patients = counts["test"]
+    need(comparison.get("n_windows") == test_n and comparison.get("n_patients") == test_patients,
+         "Refit comparison does not cover the complete patient-disjoint test set")
+    rows = comparison.get("rows")
+    need(isinstance(rows, list) and len(rows) == len(DEEP_MODELS) and
+         [row.get("name") for row in rows] == list(DEEP_MODELS),
+         "Refit comparison must contain exactly the five distinct model rows")
+    run_dirs = {}
+    for row in rows:
+        name = row["name"]
+        run_dir = Path(row.get("run_dir", ""))
+        run_dir = (run_dir if run_dir.is_absolute() else ROOT / run_dir).resolve()
+        try:
+            run_dir.relative_to(ROOT.resolve())
+            inside_project = True
+        except ValueError:
+            inside_project = False
+        need(run_dir.is_dir() and inside_project,
+             "Refit run is missing or outside the project: {}".format(name))
+        run_dirs[name] = run_dir
+    try:
+        with tempfile.TemporaryDirectory(prefix="formal-slides-refit-") as temporary:
+            regenerated_path = Path(temporary) / "final_comparison.json"
+            summarize_refits(run_dirs, regenerated_path, results_root=path.parent)
+            regenerated = read_json(regenerated_path)
+    except (OSError, ValueError, RuntimeError, KeyError) as exc:
+        raise EvidenceError("Final refit evidence failed revalidation: {}".format(exc))
+    need(regenerated == comparison,
+         "Refit comparison differs from current checkpoints, predictions or metrics")
     output = {}
-    for name in DEEP_MODELS:
-        path, metric = formal_json(models[name], name + " test metrics", dependencies)
-        need(metric.get("smoke_subset") is False, "{} lacks explicit formal flag".format(name))
-        need(metric.get("split") == "test" and metric.get("evaluation_scope") == "full_split",
-             "{} is not full test evaluation".format(name))
-        same_hash(metric.get("split_hash"), split_hash, name)
-        need(metric.get("model") == name, "Metric model identity differs for {}".format(name))
-        need(metric.get("n_windows") == test_n and metric.get("n_patients") == test_patients,
-             "{} test count differs".format(name))
-        need(metric.get("metadata_eeg_coverage") == 1.0, "{} has partial EEG coverage".format(name))
-        finite_number(metric.get("kl_window_mean"), name + " KL", 0)
-        run_dir = Path(metric.get("run_dir", ""))
-        run_dir = run_dir if run_dir.is_absolute() else ROOT / run_dir
-        checkpoint = path_from(str(run_dir / "best.pt"))
+    for row in rows:
+        name = row["name"]
+        finite_number(row.get("kl_window_mean"), name + " refit KL", 0)
+        run_dir = run_dirs[name]
+        checkpoint = path_from(str(run_dir / "final.pt"))
         config = path_from(str(run_dir / "config.json"))
         configuration = read_json(config)
-        need(configuration.get("smoke_subset") is False, "{} checkpoint is smoke".format(name))
-        need(configuration.get("model", {}).get("name") == name, "{} config model differs".format(name))
-        need(configuration.get("manifest_sha256") == digest(manifest_path),
-             "{} checkpoint uses another manifest".format(name))
-        dependencies[relative(checkpoint)] = digest(checkpoint)
-        dependencies[relative(config)] = digest(config)
-        output[name] = (path, metric, digest(checkpoint))
+        need(configuration.get("refit", {}).get("training_split") == "train+val" and
+             configuration.get("refit", {}).get("test_used_for_selection") is False,
+             "{} is not a frozen train+val refit".format(name))
+        metric_path = path_from(str(path.parent / run_dir.name / "test_metrics.json"))
+        prediction_path = path_from(str(path.parent / run_dir.name / "test_predictions.csv"))
+        need(digest(checkpoint) == row["checkpoint_sha256"] and
+             digest(metric_path) == row["test_metrics_sha256"] and
+             digest(prediction_path) == row["test_predictions_sha256"],
+             "{} source file hash differs from refit summary".format(name))
+        for source in (checkpoint, config, metric_path, prediction_path,
+                       run_dir / "completed.json", run_dir / "validation_record.json"):
+            dependencies[relative(source)] = digest(source)
+        output[name] = (path, row, row["checkpoint_sha256"])
     return output
 
 
@@ -314,7 +355,8 @@ def validate_dynamics(bundle, manifest_path, split_hash, counts, ode_checkpoint_
     need(index.get("checkpoint_sha256") == ode_checkpoint_sha, "Dynamics checkpoint differs from ODE evaluation")
     need(index.get("manifest_file_coverage") == 1.0, "Dynamics has partial EEG coverage")
     pca_count = positive_int(index.get("pca_train_window_count"), "Dynamics PCA train count")
-    need(pca_count <= counts["train"][0], "Dynamics PCA train count exceeds train split")
+    need(pca_count <= counts["train"][0] + counts["val"][0],
+         "Dynamics PCA fit count exceeds development split")
     pca = path_from(str(path.parent / index["pca_file"]))
     dependencies[relative(pca)] = digest(pca)
     with np.load(str(pca), allow_pickle=False) as projection:
@@ -322,9 +364,9 @@ def validate_dynamics(bundle, manifest_path, split_hash, counts, ode_checkpoint_
         need(str(projection["model_id"]) == index.get("model_id"), "Dynamics PCA model differs")
         pca_ids = [str(v) for v in projection["train_window_ids"].tolist()]
     train_ids = set(pd.read_csv(manifest_path, usecols=["window_id", "split"])
-                    .query("split == 'train'").window_id.astype(str))
+                    .query("split in ['train', 'val']").window_id.astype(str))
     need(len(pca_ids) == pca_count and len(set(pca_ids)) == len(pca_ids)
-         and set(pca_ids).issubset(train_ids), "Dynamics PCA contains non-train windows")
+         and set(pca_ids).issubset(train_ids), "Dynamics PCA contains non-development windows")
     lineage = index.get("training_lineage", {})
     need(lineage.get("classification_checkpoint") == ode_checkpoint_sha,
          "Dynamics training lineage differs")
@@ -420,13 +462,17 @@ def forecast_slide_scope(forecast, test_n, test_patients):
             "excluded_count": excluded}
 
 
-def validate_ui_and_resources(bundle, split_hash, dependencies):
+def validate_ui(bundle, split_hash, dependencies):
     ui_path, ui = formal_json(bundle["ui_capture"], "UI capture", dependencies)
     need(ui.get("experiment_status") == "formal", "UI capture is not formal")
     same_hash(ui.get("split_hash"), split_hash, "UI capture")
     screenshot = path_from(ui.get("image"))
     need(screenshot.suffix.lower() == ".png", "UI screenshot must be PNG")
     dependencies[relative(screenshot)] = digest(screenshot)
+    return ui_path, ui, screenshot
+
+
+def validate_resources(bundle, dependencies):
     resources_path, resources = formal_json(bundle["resources"], "Resources", dependencies)
     need(resources.get("experiment_status") == "formal", "Resources are not verified")
     for key in ("repository", "weights"):
@@ -434,7 +480,7 @@ def validate_ui_and_resources(bundle, split_hash, dependencies):
         need(isinstance(row.get("url"), str) and row["url"].startswith("https://")
              and row.get("verified_http_status") == 200 and row.get("verified_at"),
              "{} URL lacks HTTP 200 verification".format(key))
-    return ui_path, ui, screenshot, resources_path, resources
+    return resources_path, resources
 
 
 def render_panel(title, lines, output):
@@ -495,7 +541,7 @@ def render_dynamics_pair(page, left, right, output):
     plt.close(fig)
 
 
-def prepare(bundle_path, output_path):
+def prepare(bundle_path, output_path, preview=False):
     dependencies = {}
     bundle_path = path_from(str(bundle_path))
     bundle = read_json(bundle_path)
@@ -511,12 +557,18 @@ def prepare(bundle_path, output_path):
     forecast_path, forecast = validate_comparison(bundle, "forecast_comparison", split_hash, counts, dependencies)
     dyn_path, dyn_index, dyn_cases = validate_dynamics(
         bundle, manifest_path, split_hash, counts, deep["odebrain_inspired_hms"][2], dependencies)
-    ui_path, ui, screenshot, resources_path, resources = validate_ui_and_resources(bundle, split_hash, dependencies)
+    ui_path, ui, screenshot = validate_ui(bundle, split_hash, dependencies)
+    if preview:
+        resources_path, resources = None, None
+    else:
+        resources_path, resources = validate_resources(bundle, dependencies)
     output_path = Path(output_path)
     output_path = output_path if output_path.is_absolute() else ROOT / output_path
-    need(output_path.resolve() == (ROOT / "results/slides_evidence.json").resolve(),
-         "Formal PPTX builder reads results/slides_evidence.json")
-    figure_dir = ROOT / "results/figures/formal_slides"
+    expected_output = "results/slides_evidence_preview.json" if preview else "results/slides_evidence.json"
+    need(output_path.resolve() == (ROOT / expected_output).resolve(),
+         "PPTX builder reads {}".format(expected_output))
+    figure_dir = ROOT / ("results/figures/preview_slides" if preview else
+                         "results/figures/formal_slides")
     figure_dir.mkdir(parents=True, exist_ok=True)
     test_n, test_patients = counts["test"]
     rows = {}
@@ -540,7 +592,8 @@ def prepare(bundle_path, output_path):
                            "n_patients": test_patients if patient_count is None else patient_count,
                            "n_windows": test_n if window_count is None else window_count,
                            "model_version": model,
-                           "experiment_status": "formal", "smoke_subset": False,
+                           "experiment_status": "local_preview" if preview else "formal",
+                           "smoke_subset": False,
                            "source_sha256": dependencies[relative(source)],
                            "image_sha256": digest(image_path),
                            "input_sha256": dict(sorted(dependencies.items()))}
@@ -562,31 +615,37 @@ def prepare(bundle_path, output_path):
                           "Processing + write: {:.1f} s".format(feature["wall_seconds_including_write"]),
                           "Valid windows: {:,}".format(sum(w for w, _ in counts.values())),
                           "Spark version: {}".format(feature["spark_version"])])
-    add(9, spark_path, ["Full test set; KL(target || prediction)", *(
+    add(9, deep["odebrain_inspired_hms"][0], ["Full test; deep models refit on train+val",
+        "Spark baselines: training split only", "KL(target || prediction)", *(
         "Spark {}: {:.4f}".format(name.upper(), spark["models"][name]["splits"]["test"]["kl_window_mean"])
         for name in ("lr", "rf")), *(
-        "{}: {:.4f}".format(name, deep[name][1]["kl_window_mean"]) for name in DEEP_MODELS)])
-    add(13, deep["odebrain_inspired_hms"][0], ["Full patient-disjoint test evaluation",
+        "{}: {:.4f}".format(name, deep[name][1]["kl_window_mean"]) for name in DEEP_MODELS)],
+        model=deep["odebrain_inspired_hms"][2][:16],
+        extra={"headline_training_protocol": "train_val_fixed_epoch_refit"})
+    add(13, deep["odebrain_inspired_hms"][0], ["Deep models: train+val fixed-epoch refit",
+        "Epochs frozen from initial validation; no test selection",
         "Test: {:,} windows / {:,} patients".format(test_n, test_patients),
         "KL(target || prediction), window mean", "Split SHA256: {}".format(split_hash[:20]),
         "ODE checkpoint SHA256: {}".format(deep["odebrain_inspired_hms"][2][:20])],
-        model=deep["odebrain_inspired_hms"][2][:16])
-    add(14, deep["odebrain_inspired_hms"][0], ["Test KL, lower is better", *(
+        model=deep["odebrain_inspired_hms"][2][:16],
+        extra={"headline_training_protocol": "train_val_fixed_epoch_refit"})
+    add(14, deep["odebrain_inspired_hms"][0], ["Final refit test KL, lower is better", *(
         "{}: {:.4f}".format(name, deep[name][1]["kl_window_mean"]) for name in DEEP_MODELS),
-        "Spark LR: {:.4f} | RF: {:.4f}".format(*(
+        "Spark (train only) LR: {:.4f} | RF: {:.4f}".format(*(
             spark["models"][n]["splits"]["test"]["kl_window_mean"] for n in ("lr", "rf")))],
-        model=deep["odebrain_inspired_hms"][2][:16])
-    add(15, ablation_path, ["Measured test ablations; KL lower is better", *(
+        model=deep["odebrain_inspired_hms"][2][:16],
+        extra={"headline_training_protocol": "train_val_fixed_epoch_refit"})
+    add(15, ablation_path, ["Initial-run ablations; test KL lower is better", *(
         "{}: {:.4f}".format(row["name"], row["kl_window_mean"]) for row in ablation["rows"][:7])],
-        model=deep["odebrain_inspired_hms"][2][:16])
+        model="initial_ablation_runs")
     forecast_scope = forecast_slide_scope(forecast, test_n, test_patients)
-    add(16, forecast_path, ["Future node MAE, eligible test set",
+    add(16, forecast_path, ["Initial-run future-node MAE; eligible test set",
         "Eligible {:,}/{:,}; excluded {:,} for invalid input/target".format(
             forecast["forecast_eligibility"]["eligible_test_windows"], test_n,
             forecast["forecast_eligibility"]["excluded_test_windows"]), *(
         "{}: 1s {:.3f} | 3s {:.3f} | 5s {:.3f}".format(
             row["name"], *(row["mae_by_horizon_s"][h] for h in ("1", "3", "5")))
-        for row in forecast["rows"][:6])], model=deep["odebrain_inspired_hms"][2][:16],
+        for row in forecast["rows"][:6])], model="initial_forecast_runs",
         window_count=forecast_scope["n_windows"],
         patient_count=forecast_scope["n_patients"],
         extra={key: value for key, value in forecast_scope.items()
@@ -610,17 +669,30 @@ def prepare(bundle_path, output_path):
         full_spark[0]["median_end_to_end_seconds"]), "Physical hosts: 1",
         "Do not infer multi-node scalability"])
     add(21, ui_path, original_image=screenshot, model=deep["odebrain_inspired_hms"][2][:16])
-    add(22, deep["odebrain_inspired_hms"][0], ["Formal test evidence", "Models: 2 Spark + 5 deep",
+    add(22, deep["odebrain_inspired_hms"][0], ["Final refit test evidence", "Models: 2 Spark + 5 deep",
         "Test: {:,} windows / {:,} patients".format(test_n, test_patients),
         "ODE KL: {:.4f}".format(deep["odebrain_inspired_hms"][1]["kl_window_mean"]),
         "Observed dynamics cases: {}".format(len(dyn_index["cases"]))],
-        model=deep["odebrain_inspired_hms"][2][:16])
-    add(23, resources_path, ["Verified project resources", resources["repository"]["url"],
-        resources["weights"]["url"], "Both links: HTTP 200 recorded",
-        "HMS data: Kaggle competition page"], model=deep["odebrain_inspired_hms"][2][:16])
+        model=deep["odebrain_inspired_hms"][2][:16],
+        extra={"headline_training_protocol": "train_val_fixed_epoch_refit"})
+    if preview:
+        add(23, bundle_path, ["Local preview; pending publication review",
+            "Project repository: unpublished", "Model weights: unpublished",
+            "HMS data: Kaggle competition page"],
+            model=deep["odebrain_inspired_hms"][2][:16],
+            extra={"publication_status": "pending_review"})
+    else:
+        add(23, resources_path, ["Verified project resources", resources["repository"]["url"],
+            resources["weights"]["url"], "Both links: HTTP 200 recorded",
+            "HMS data: Kaggle competition page"], model=deep["odebrain_inspired_hms"][2][:16])
     need(set(map(int, rows)) == set(PAGES), "Missing experimental slide")
-    payload = {"schema_version": "formal_slide_evidence_v1", "formal": True,
-               "experiment_status": "formal", "split_hash": split_hash,
+    payload = {"schema_version": "formal_slide_evidence_v1", "formal": not preview,
+               "experiment_status": "local_preview" if preview else "formal",
+               "publication_status": "pending_review" if preview else "verified",
+               "split_hash": split_hash,
+               "headline_training_protocol": "train_val_fixed_epoch_refit",
+               "headline_refit_comparison": relative(deep["odebrain_inspired_hms"][0]),
+               "headline_refit_comparison_sha256": dependencies[relative(deep["odebrain_inspired_hms"][0])],
                "manifest_split_hash": split_hash, "manifest_file_sha256": digest(manifest_path),
                "dependencies_sha256": dict(sorted(dependencies.items())), "slides": rows}
     output_path.parent.mkdir(parents=True, exist_ok=True)
@@ -640,10 +712,14 @@ TITLES = {4: "HMS audit", 5: "Patient split", 7: "Deployment", 8: "Spark feature
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--inputs", required=True, help="Formal input bundle JSON")
-    parser.add_argument("--output", default="results/slides_evidence.json")
+    parser.add_argument("--output", help="Evidence JSON; defaults by mode")
+    parser.add_argument("--preview", action="store_true",
+                        help="Verify experiments but mark local deck pending publication")
     args = parser.parse_args()
     try:
-        print(prepare(args.inputs, args.output))
+        output = args.output or ("results/slides_evidence_preview.json" if args.preview else
+                                 "results/slides_evidence.json")
+        print(prepare(args.inputs, output, preview=args.preview))
     except (EvidenceError, KeyError, TypeError) as exc:
         parser.exit(2, "Formal slide evidence rejected: {}\n".format(exc))
 

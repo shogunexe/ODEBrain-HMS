@@ -22,10 +22,12 @@ from pptx.util import Inches, Pt
 ROOT = Path(__file__).resolve().parents[1]
 SLIDES = ROOT / "slides"
 EVIDENCE = ROOT / "results" / "slides_evidence.json"
+PREVIEW_EVIDENCE = ROOT / "results" / "slides_evidence_preview.json"
 
 # The whole-deck source manifest is deliberately required for formal output.
 # Static diagrams and explanatory text are editable PowerPoint shapes.
 EXPERIMENTAL = {4, 5, 7, 8, 9, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23}
+HEADLINE = {9, 13, 14, 22}
 SOURCES = {
     "hms": "https://www.kaggle.com/competitions/hms-harmful-brain-activity-classification/data",
     "ode_code": "https://github.com/HHJIAnmo/ODEBRAIN",
@@ -105,16 +107,68 @@ def txt(slide, value, x, y, w, h, size=18, color=WHITE, bold=False,
     return sh
 
 
-def load_evidence(final):
-    if not final:
+def load_evidence(final, preview=False):
+    if not final and not preview:
         return {}
-    if not EVIDENCE.is_file():
-        raise SystemExit("正式稿需要 results/slides_evidence.json；当前只能生成 DRAFT。")
-    raw = json.loads(EVIDENCE.read_text(encoding="utf-8"))
-    if raw.get("experiment_status") != "formal" or not raw.get("split_hash"):
-        raise SystemExit("正式稿证据清单必须标为 formal 并绑定统一 split_hash。")
+    if final and preview:
+        raise SystemExit("正式稿和本地预览不能同时选择。")
+    evidence_path = PREVIEW_EVIDENCE if preview else EVIDENCE
+    if not evidence_path.is_file():
+        raise SystemExit("缺少结果证据清单：{}".format(evidence_path))
+    raw = json.loads(evidence_path.read_text(encoding="utf-8"))
+    expected_status = "local_preview" if preview else "formal"
+    if raw.get("experiment_status") != expected_status or not raw.get("split_hash"):
+        raise SystemExit("结果证据清单状态或统一 split_hash 不匹配。")
+    if preview and (raw.get("formal") is not False or
+                    raw.get("publication_status") != "pending_review"):
+        raise SystemExit("本地预览须明确标记待发布审核且非正式交付。")
     evidence = {int(k): v for k, v in raw.get("slides", {}).items()}
     failures = []
+    dependencies = raw.get("dependencies_sha256")
+    if not isinstance(dependencies, dict) or not dependencies:
+        failures.append("evidence:missing source dependency hashes")
+    else:
+        for source_name, expected_hash in dependencies.items():
+            if not isinstance(source_name, str) or not isinstance(expected_hash, str):
+                failures.append("evidence:invalid dependency entry")
+                continue
+            source_path = (ROOT / source_name).resolve()
+            try:
+                source_path.relative_to(ROOT.resolve())
+            except ValueError:
+                failures.append("evidence:dependency outside project")
+                continue
+            if not source_path.is_file() or sha256_file(source_path) != expected_hash:
+                failures.append("evidence:dependency changed {}".format(source_name))
+    if HEADLINE & EXPERIMENTAL:
+        summary_name = raw.get("headline_refit_comparison")
+        if raw.get("headline_training_protocol") != "train_val_fixed_epoch_refit" or not summary_name:
+            failures.append("headline:missing train+val refit comparison")
+        else:
+            summary_path = (ROOT / summary_name).resolve()
+            try:
+                summary_path.relative_to(ROOT.resolve())
+            except ValueError:
+                failures.append("headline:comparison outside project")
+            else:
+                if not summary_path.is_file() or sha256_file(summary_path) != raw.get("headline_refit_comparison_sha256"):
+                    failures.append("headline:comparison hash mismatch")
+                else:
+                    comparison = json.loads(summary_path.read_text(encoding="utf-8"))
+                    if (comparison.get("schema_version") != "hms_final_refit_comparison_v1" or
+                        comparison.get("experiment_status") != "formal" or
+                        comparison.get("training_protocol") != "train_val_fixed_epoch_refit" or
+                        comparison.get("split") != "test" or
+                        comparison.get("split_hash") != raw["split_hash"] or
+                        comparison.get("test_used_for_selection") is not False or
+                        len(comparison.get("rows", [])) != 5):
+                        failures.append("headline:invalid refit comparison")
+                    for page in HEADLINE & EXPERIMENTAL:
+                        row = evidence.get(page, {})
+                        if (row.get("source_file") != summary_name or
+                            row.get("source_sha256") != raw.get("headline_refit_comparison_sha256") or
+                            row.get("headline_training_protocol") != "train_val_fixed_epoch_refit"):
+                            failures.append("{}:headline provenance mismatch".format(page))
     for i in sorted(EXPERIMENTAL):
         row = evidence.get(i, {})
         for key in ("image", "split_hash", "n_patients", "n_windows", "model_version", "source_file",
@@ -122,8 +176,10 @@ def load_evidence(final):
             if not row.get(key): failures.append("{}:{}".format(i, key))
         if row.get("split_hash") != raw["split_hash"]:
             failures.append("{}:split_hash mismatch".format(i))
-        if row.get("experiment_status") != "formal" or row.get("smoke_subset") is not False:
-            failures.append("{}:not formal evidence".format(i))
+        if row.get("experiment_status") != expected_status or row.get("smoke_subset") is not False:
+            failures.append("{}:evidence status differs".format(i))
+        if preview and i == 23 and row.get("publication_status") != "pending_review":
+            failures.append("23:publication status differs")
         if any(token in str(row.get("model_version", "")).lower() for token in ("draft", "smoke", "pending")):
             failures.append("{}:model_version is provisional".format(i))
         for count_key in ("n_patients", "n_windows"):
@@ -206,8 +262,8 @@ def add_flow(slide, index):
     return True
 
 
-def build(final=False):
-    evidence = load_evidence(final)
+def build(final=False, preview=False):
+    evidence = load_evidence(final, preview=preview)
     project_links = load_verified_resources(evidence) if final else {}
     prs = Presentation(); prs.slide_width = Inches(13.333); prs.slide_height = Inches(7.5)
     for i, (title, claim, bullets, expected) in enumerate(PAGES, 1):
@@ -236,7 +292,7 @@ def build(final=False):
             txt(slide, meta, 6.75, 6.03, 5.74, .45, 11, MUTED)
         elif not add_flow(slide, i):
             txt(slide, expected, 6.85, 3.30, 5.48, .75, 20, WHITE, True, PP_ALIGN.CENTER)
-            if not final:
+            if not final and not preview:
                 txt(slide, "待真实结果 / 运行记录", 6.87, 4.17, 5.46, .48, 16, AMBER, False, PP_ALIGN.CENTER)
         if i == 23:
             box(slide, 6.76, 5.10 if final else 5.16,
@@ -264,12 +320,17 @@ def build(final=False):
                     11, LINK_INK, True, link=project_links["repository"])
                 txt(slide, "模型权重下载", 9.67, 6.08, 2.70, .32,
                     11, LINK_INK, True, link=project_links["weights"])
-        if not final:
+        if preview:
+            txt(slide, "LOCAL PREVIEW · 待发布审核 · 非正式交付", 7.30, .28, 5.48, .43,
+                12, AMBER, True, PP_ALIGN.RIGHT)
+        elif not final:
             txt(slide, "DRAFT · 待实验 · 不作正式结果", 8.00, .28, 4.78, .43, 13, AMBER, True, PP_ALIGN.RIGHT)
         txt(slide, "{} / 24".format(i), 11.97, 7.04, .78, .25, 10, MUTED, align=PP_ALIGN.RIGHT)
     SLIDES.mkdir(exist_ok=True)
     # ASCII filenames work under this server's Python 3.6 ASCII filesystem locale.
-    out = SLIDES / ("ODEBrain_final.pptx" if final else "ODEBrain_DRAFT_pending_experiments.pptx")
+    out = SLIDES / ("ODEBrain_final.pptx" if final else
+                    "ODEBrain_LOCAL_PREVIEW_pending_publication.pptx" if preview else
+                    "ODEBrain_DRAFT_pending_experiments.pptx")
     with out.open("wb") as stream:
         prs.save(stream)
     return out
@@ -277,6 +338,8 @@ def build(final=False):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("--final", action="store_true", help="Require verified result evidence")
+    mode = parser.add_mutually_exclusive_group()
+    mode.add_argument("--final", action="store_true", help="Require verified result evidence and public resources")
+    mode.add_argument("--preview", action="store_true", help="Use verified results with publication-pending watermark")
     args = parser.parse_args()
-    print(build(args.final))
+    print(build(args.final, preview=args.preview))

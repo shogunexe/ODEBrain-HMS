@@ -4,6 +4,8 @@ Formal invocation writes ``results/forecast_comparison.json`` only when both
 checkpoints, the audited full manifest, and the held-out test split pass all
 provenance checks. ``--smoke`` evaluates frozen validation windows and writes
 ``forecast_comparison_smoke.json``; it never produces a formal result.
+``--protocol refit`` evaluates the two fixed-epoch train+val forecast refits
+from their ``final.pt`` checkpoints and writes a separate comparison.
 """
 
 import argparse
@@ -30,6 +32,7 @@ from src.training.engine import load_checkpoint
 
 HORIZONS = (1, 3, 5)
 METHODS = ("odebrain_inspired_hms", "graph_gru", "persistence")
+PROTOCOLS = ("initial", "refit")
 
 
 def _canonical_hash(values):
@@ -83,6 +86,78 @@ def _read_run(run_dir, expected_name, manifest_path, smoke):
             "checkpoint": checkpoint, "checkpoint_path": checkpoint_path,
             "config_path": config_path, "normalizer_path": normalizer_path,
             "mean": mean, "std": std, "snapshot": snapshot}
+
+
+def _read_refit_run(run_dir, expected_name, manifest_path):
+    """Load a finished forecast refit without choosing a checkpoint or epoch."""
+    from scripts.refit_final import _check_final_run
+
+    checked = _check_final_run(run_dir)
+    config = checked["config"]
+    refit = config.get("refit", {})
+    if (config.get("model", {}).get("name") != expected_name or
+            refit.get("task") != "forecast" or
+            config.get("data", {}).get("task") != "forecast" or
+            float(config.get("training", {}).get("forecast_weight", 0)) <= 0 or
+            config.get("smoke_subset") is not False):
+        raise ValueError("Refit comparison requires finished formal graph forecast pretraining")
+    if config.get("manifest_sha256") != file_sha256(manifest_path):
+        raise ValueError("Refit forecast manifest differs from evaluation manifest")
+    horizons = tuple(config.get("data", {}).get("forecast_horizons", ()))
+    cut = int(config.get("data", {}).get("forecast_cut_seconds", -1))
+    if horizons != HORIZONS or cut < 1:
+        raise ValueError("Refit forecast horizons or observation cut differ from protocol")
+    if expected_name == "graph_gru" and tuple(config["model"]["kwargs"].get("forecast_horizons", ())) != HORIZONS:
+        raise ValueError("GraphGRU output horizons differ from evaluation protocol")
+    run_dir = checked["dir"]
+    snapshot_path = run_dir / "window_snapshot.json"
+    snapshot = json.loads(snapshot_path.read_text(encoding="utf-8"))
+    normalizer_path = run_dir / "graph_normalizer.npz"
+    return {"run_dir": run_dir, "model": checked["model"], "config": config,
+            "checkpoint": {"epoch": refit["fixed_epochs"] - 1},
+            "checkpoint_path": checked["checkpoint_path"],
+            "config_path": run_dir / "config.json", "normalizer_path": normalizer_path,
+            "mean": checked["mean"], "std": checked["std"], "snapshot": snapshot,
+            "completed_path": run_dir / "completed.json",
+            "selection_path": run_dir / "validation_record.json",
+            "snapshot_path": snapshot_path,
+            "source_checkpoint_path": checked["source"]["checkpoint_path"]}
+
+
+def _training_window_ids(run, protocol):
+    key = "train_dev" if protocol == "refit" else "train"
+    ids = [str(x) for x in run["snapshot"].get(key, [])]
+    if not ids or len(ids) != len(set(ids)):
+        raise ValueError("Checkpoint training snapshot is missing or has duplicate windows")
+    return ids
+
+
+def _eligible_development_ids(cache, manifest_path, table):
+    index = json.loads((Path(cache) / "index.json").read_text(encoding="utf-8"))
+    if (index.get("schema_version") != "hms_graph_forecast_cache_v2" or
+            index.get("manifest_sha256") != file_sha256(manifest_path)):
+        raise ValueError("Forecast eligibility cache has the wrong manifest or schema")
+    eligible = set()
+    for record in index.get("records", []):
+        ids = record.get("window_ids", [])
+        reasons = record.get("eligibility_reason", [])
+        if len(ids) != len(reasons):
+            raise ValueError("Forecast cache eligibility record is malformed")
+        eligible.update(str(window_id) for window_id, reason in zip(ids, reasons)
+                        if reason == "ok")
+    dev = set()
+    for split in ("train", "val"):
+        split_ids = set(table.loc[(table.split == split) &
+                                  (table.audit_reason == "ok"), "window_id"].astype(str))
+        selected = eligible & split_ids
+        summary = index.get("forecast_eligibility", {}).get("by_split", {}).get(split, {})
+        digest = hashlib.sha256("\n".join(sorted(selected)).encode("utf-8")).hexdigest()
+        if (len(selected) != summary.get("eligible") or
+                len(split_ids) != summary.get("eligible", -1) + summary.get("excluded", -1) or
+                digest != summary.get("eligible_window_ids_sha256")):
+            raise ValueError("Forecast cache development eligibility summary differs from manifest")
+        dev.update(selected)
+    return dev
 
 
 def _verify_pretrain_source(config, manifest_path, smoke):
@@ -245,7 +320,9 @@ def _comparison_rows(methods):
 
 def evaluate_forecast(ode_run_dir, gru_run_dir, manifest_path, output_path,
                       smoke=False, batch_size=8, workers=0, device="cpu",
-                      graph_cache_dir=None):
+                      graph_cache_dir=None, protocol="initial"):
+    if protocol not in PROTOCOLS or (protocol == "refit" and smoke):
+        raise ValueError("Refit forecast comparison requires formal test scope")
     if batch_size < 1 or workers < 0:
         raise ValueError("batch_size must be positive and workers nonnegative")
     manifest_path = Path(manifest_path).resolve()
@@ -258,14 +335,23 @@ def evaluate_forecast(ode_run_dir, gru_run_dir, manifest_path, output_path,
         require_full_data(manifest_path)
     split = "val" if smoke else "test"
     table, selected = _check_manifest(manifest_path, split)
-    ode = _read_run(ode_run_dir, "odebrain_inspired_hms", manifest_path, smoke)
-    gru = _read_run(gru_run_dir, "graph_gru", manifest_path, smoke)
+    if protocol == "refit":
+        ode = _read_refit_run(ode_run_dir, "odebrain_inspired_hms", manifest_path)
+        gru = _read_refit_run(gru_run_dir, "graph_gru", manifest_path)
+    else:
+        ode = _read_run(ode_run_dir, "odebrain_inspired_hms", manifest_path, smoke)
+        gru = _read_run(gru_run_dir, "graph_gru", manifest_path, smoke)
     if ode["config"]["data"]["forecast_cut_seconds"] != gru["config"]["data"]["forecast_cut_seconds"]:
         raise ValueError("Models used different forecast observation cuts")
     if not np.array_equal(ode["mean"], gru["mean"]) or not np.array_equal(ode["std"], gru["std"]):
         raise ValueError("Models used different train-fitted graph normalization")
-    if set(str(x) for x in ode["snapshot"].get("train", [])) != set(str(x) for x in gru["snapshot"].get("train", [])):
+    if set(_training_window_ids(ode, protocol)) != set(_training_window_ids(gru, protocol)):
         raise ValueError("Models used different training window sets")
+    if protocol == "refit":
+        source_ids = set(table.loc[(table.audit_reason == "ok") &
+                                   table.split.isin(("train", "val")), "window_id"].astype(str))
+        if not set(_training_window_ids(ode, protocol)).issubset(source_ids):
+            raise ValueError("Refit forecast snapshot contains windows outside the development split")
     cut = int(ode["config"]["data"]["forecast_cut_seconds"])
     if smoke:
         chosen = _frozen_smoke_windows(ode, gru, selected)
@@ -275,6 +361,15 @@ def evaluate_forecast(ode_run_dir, gru_run_dir, manifest_path, output_path,
         cache = ode["config"].get("data", {}).get("graph_cache_dir")
     if not smoke and not cache:
         raise ValueError("Formal forecasting requires the audited eligibility cache")
+    if protocol == "refit":
+        expected_caches = [run["config"].get("data", {}).get("graph_cache_dir")
+                           for run in (ode, gru)]
+        if any(not path or Path(path).resolve() != Path(cache).resolve()
+               for path in expected_caches):
+            raise ValueError("Refit models and evaluation must use the same forecast eligibility cache")
+        eligible_dev = _eligible_development_ids(cache, manifest_path, table)
+        if set(_training_window_ids(ode, protocol)) != eligible_dev:
+            raise ValueError("Refit forecast snapshot differs from all eligible development windows")
     dataset = HMSWindowDataset(manifest_path, split, task="forecast",
                                forecast_cut_seconds=cut, forecast_horizons=HORIZONS,
                                graph_mean=ode["mean"], graph_std=ode["std"],
@@ -338,7 +433,7 @@ def evaluate_forecast(ode_run_dir, gru_run_dir, manifest_path, output_path,
         raise ValueError("Formal forecast counts differ from audited eligible test windows")
     for run in (ode, gru):
         training_patients = set(table.set_index(table.window_id.astype(str)).loc[
-            [str(x) for x in run["snapshot"]["train"]], "patient_id"].astype(str))
+            _training_window_ids(run, protocol), "patient_id"].astype(str))
         if training_patients & set(seen_patients):
             raise ValueError("Checkpoint training patients overlap evaluation patients")
     methods = errors.result()
@@ -346,6 +441,7 @@ def evaluate_forecast(ode_run_dir, gru_run_dir, manifest_path, output_path,
         "schema_version": "hms_forecast_comparison_v1" if smoke else "hms_forecast_comparison_v2",
         "generated_utc": datetime.now(timezone.utc).isoformat(),
         "experiment_status": "real_data_smoke" if smoke else "formal",
+        "training_protocol": "train_val_fixed_epoch_refit" if protocol == "refit" else "validation_selected_train_only",
         "smoke_subset": bool(smoke),
         "synthetic": False,
         "evaluation_scope": "frozen_smoke_val" if smoke else "forecast_eligible_held_out_test",
@@ -369,7 +465,7 @@ def evaluate_forecast(ode_run_dir, gru_run_dir, manifest_path, output_path,
         "provenance": {
             "manifest": str(manifest_path),
             "graph_cache_dir": str(Path(cache).resolve()) if cache else None,
-            "ode": _run_provenance(ode), "graph_gru": _run_provenance(gru),
+            "ode": _run_provenance(ode, protocol), "graph_gru": _run_provenance(gru, protocol),
             "persistence": "last valid observed node attribute repeated at each horizon",
         },
     }
@@ -380,9 +476,9 @@ def evaluate_forecast(ode_run_dir, gru_run_dir, manifest_path, output_path,
     return result
 
 
-def _run_provenance(run):
+def _run_provenance(run, protocol="initial"):
     config = run["config"]
-    return {"run_dir": str(run["run_dir"]),
+    result = {"run_dir": str(run["run_dir"]),
             "model_name": config["model"]["name"],
             "checkpoint": str(run["checkpoint_path"]),
             "checkpoint_sha256": file_sha256(run["checkpoint_path"]),
@@ -393,6 +489,21 @@ def _run_provenance(run):
             "initial_pretrain_checkpoint_sha256": config.get("init_checkpoint_sha256"),
             "training_task": config.get("data", {}).get("task", "classification"),
             "smoke_subset": bool(config.get("smoke_subset"))}
+    if protocol == "refit":
+        refit = config["refit"]
+        result.update({
+            "training_protocol": "train_val_fixed_epoch_refit",
+            "training_window_count": len(_training_window_ids(run, protocol)),
+            "training_window_ids_sha256": _canonical_hash(_training_window_ids(run, protocol)),
+            "fixed_epochs": int(refit["fixed_epochs"]),
+            "source_best_epoch_zero_indexed": int(refit["source_best_epoch_zero_indexed"]),
+            "source_best_checkpoint": str(run["source_checkpoint_path"]),
+            "source_best_checkpoint_sha256": refit["source_best_checkpoint_sha256"],
+            "completion_sha256": file_sha256(run["completed_path"]),
+            "validation_record_sha256": file_sha256(run["selection_path"]),
+            "window_snapshot_sha256": file_sha256(run["snapshot_path"]),
+        })
+    return result
 
 
 def main(argv=None):
@@ -406,13 +517,17 @@ def main(argv=None):
     parser.add_argument("--workers", type=int, default=0)
     parser.add_argument("--device", default="cpu")
     parser.add_argument("--smoke", action="store_true", help="Evaluate frozen validation smoke windows only")
+    parser.add_argument("--protocol", choices=PROTOCOLS, default="initial",
+                        help="Use initial best.pt runs or fixed-epoch train+val forecast final.pt refits")
     args = parser.parse_args(argv)
     output = args.output or ("results/forecast_comparison_smoke.json" if args.smoke else
+                             "results/refit/forecast_comparison.json" if args.protocol == "refit" else
                              "results/forecast_comparison.json")
     result = evaluate_forecast(args.ode_run_dir, args.gru_run_dir, args.manifest,
                                output, smoke=args.smoke, batch_size=args.batch_size,
                                workers=args.workers, device=args.device,
-                               graph_cache_dir=args.graph_cache_dir)
+                               graph_cache_dir=args.graph_cache_dir,
+                               protocol=args.protocol)
     print(json.dumps({"output": str(Path(output).resolve()),
                       "evaluation_scope": result["evaluation_scope"],
                       "window_count": result["window_count"],

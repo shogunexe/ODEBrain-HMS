@@ -2,11 +2,11 @@
 
 课程项目：《基于 Spark 与 ODEBrain 连续动力学建模的 EEG 异常脑电活动分析与可视化系统》。当前目录是实施中的研究代码。**没有真实 HMS 实验结果时，不应把合成测试当成分类表现。**
 
-## 当前状态（2026-11-08）
+## 当前状态（2026-11-09 16:28 Asia/Shanghai）
 
 - 已实现 HMS 元数据审计、患者级划分、EEG 窗口与图特征、Spark 特征和 LR/RF 基线、四种深度对照、ODEBrain-inspired HMS、评估指标与可视化代码。
 - 本机实测 2×V100S 32GB、40 CPU、251 GiB RAM；详见 [环境盘点](docs/environment.md)。不以方案中的 8×A100 预算制定实验结论。
-- Kaggle 账号已接受[竞赛规则](https://www.kaggle.com/competitions/hms-harmful-brain-activity-classification/rules)。19,762,787,900 字节的官方训练数据 ZIP 已下载完整并通过 `unzip -t` 全包校验；17,300 个 EEG 和 11,138 个频谱文件均已解压。全量质量审计覆盖 106,800 条标注、17,089 个被引用 EEG 文件，保留 106,587 个有效分类窗口；患者级 train/val/test 分别为 67,114/16,835/22,638 个窗口，split SHA256 为 `f334b0e31f5faf520f85a2d4c79631caf7edef2102460a8bcd629fc2a699a82f`。正式 Spark 特征与 TCN 训练正在运行；正式模型评估、图预测对照和最终交付结果尚未完成。预测任务专用 `graph_forecast_v2` 缓存正在构建，其 eligible 窗口数不能从分类有效窗口数直接推断；冻结的 36 文件、364 窗口子集仅用于 smoke。
+- Kaggle 账号已接受[竞赛规则](https://www.kaggle.com/competitions/hms-harmful-brain-activity-classification/rules)。19,762,787,900 字节的官方训练数据 ZIP 已下载完整并通过 `unzip -t` 全包校验；17,300 个 EEG 和 11,138 个频谱文件均已解压。全量质量审计覆盖 106,800 条标注、17,089 个被引用 EEG 文件，保留 106,587 个有效分类窗口；患者级 train/val/test 分别为 67,114/16,835/22,638 个窗口，split SHA256 为 `f334b0e31f5faf520f85a2d4c79631caf7edef2102460a8bcd629fc2a699a82f`。全量 Spark 特征、LR/RF 基线和三方法 36 次性能基准已完成；TCN、频谱 CNN、融合模型完成初训、完整测试和 train+val 固定轮次重训。ODE 分类初训与图模型重训正在两张 GPU 上并行。预测任务专用 `graph_forecast_v2` 缓存已建成，其中 106,434 个分类有效窗口适于预测，测试集 22,606 个适于预测；冻结的 36 文件、364 窗口子集仅用于 smoke。
 - 模型名 **ODEBrainInspiredHMS**；这是独立重写的 HMS 改造版，不是完整官方代码移植。[审计与偏离](docs/odebrain_adaptation.md)。
 
 ## 数据与研究边界
@@ -61,6 +61,6 @@ export PYSPARK_PYTHON="$PWD/.venv/bin/python"
 
 ## 结果与资源
 
-正式结果写入 `results/`，模型及归一化参数写入 `artifacts/runs/`，静态图写入 `results/figures/`。每份权重须与配置、通道顺序、划分哈希和预处理版本一起使用。Spark 细节见 [流水线说明](docs/SPARK_PIPELINE.md)，执行进度见 [状态](docs/status.md)。
+正式结果写入 `results/`，初训模型及归一化参数写入 `artifacts/runs/`，完整开发集重训写入 `artifacts/refit/`。静态图写入 `results/figures/`。每份权重须与配置、通道顺序、划分哈希和预处理版本一起使用。最终五模型主表将来自 [完整开发集重训流程](docs/refit_final.md)；初训测试结果单独标注。Spark 细节见 [流水线说明](docs/SPARK_PIPELINE.md)，执行进度见 [状态](docs/status.md)。
 
 24 页[可编辑 DRAFT PPTX](slides/ODEBrain_DRAFT_pending_experiments.pptx) 已用项目内本地 LibreOffice 转成 [DRAFT PDF](slides/ODEBrain_DRAFT_pending_experiments.pdf)，两者均为 24 页；见 [导出验证](docs/pdf_export.md)。这不是正式实验结果或最终提交 PDF。GitHub 仓库、权重访问地址与最终 PDF 均待正式实验产物和发布授权完成后补充；不会保留示例 URL 作为正式资源。HMS 数据由 Kaggle 标注 CC BY-NC 4.0，下载和再发布应遵守其当时条款；ODEBrain 官方代码为 MIT，来源与项目改造分别记录。

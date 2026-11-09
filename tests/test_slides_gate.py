@@ -11,6 +11,7 @@ from scripts import build_slides
 def test_final_slides_reject_smoke_source(tmp_path, monkeypatch):
     monkeypatch.setattr(build_slides, "ROOT", tmp_path)
     monkeypatch.setattr(build_slides, "EVIDENCE", tmp_path / "slides_evidence.json")
+    monkeypatch.setattr(build_slides, "EXPERIMENTAL", {23})
     image = tmp_path / "figure.png"
     source = tmp_path / "metrics.json"
     image.write_bytes(b"static figure")
@@ -21,11 +22,13 @@ def test_final_slides_reject_smoke_source(tmp_path, monkeypatch):
            "split_hash": "frozen-split", "n_patients": 2, "n_windows": 10,
            "model_version": "trained-v1", "experiment_status": "formal", "smoke_subset": False}
     evidence = {"experiment_status": "formal", "split_hash": "frozen-split",
+                "dependencies_sha256": {source.name: row["source_sha256"]},
                 "slides": {str(i): row for i in build_slides.EXPERIMENTAL}}
     build_slides.EVIDENCE.write_text(json.dumps(evidence), encoding="utf-8")
     assert len(build_slides.load_evidence(True)) == len(build_slides.EXPERIMENTAL)
     source.write_text(json.dumps({"smoke_subset": True}), encoding="utf-8")
     row["source_sha256"] = hashlib.sha256(source.read_bytes()).hexdigest()
+    evidence["dependencies_sha256"][source.name] = row["source_sha256"]
     build_slides.EVIDENCE.write_text(json.dumps(evidence), encoding="utf-8")
     with pytest.raises(SystemExit, match="smoke evidence"):
         build_slides.load_evidence(True)
@@ -51,6 +54,7 @@ def test_formal_resource_links_are_clickable_and_require_verification(tmp_path, 
            "split_hash": "frozen-split", "n_patients": 2, "n_windows": 10,
            "model_version": "trained-v1", "experiment_status": "formal", "smoke_subset": False}
     evidence = {"experiment_status": "formal", "split_hash": "frozen-split",
+                "dependencies_sha256": {source.name: row["source_sha256"]},
                 "slides": {"23": row}}
     build_slides.EVIDENCE.write_text(json.dumps(evidence), encoding="utf-8")
 
@@ -75,6 +79,7 @@ def test_formal_resource_links_are_clickable_and_require_verification(tmp_path, 
     resources["weights"]["verified_at"] = ""
     source.write_text(json.dumps(resources), encoding="utf-8")
     row["source_sha256"] = hashlib.sha256(source.read_bytes()).hexdigest()
+    evidence["dependencies_sha256"][source.name] = row["source_sha256"]
     build_slides.EVIDENCE.write_text(json.dumps(evidence), encoding="utf-8")
     with pytest.raises(SystemExit, match="weights"):
         build_slides.build(final=True)

@@ -1,6 +1,6 @@
 # 图属性预测评估协议
 
-本评估比较 **ODEBrainInspiredHMS、GraphGRU 和 persistence** 对相同未来电极节点属性的预测。属性是每个 1 秒图帧的五个 `log1p` 频带功率，不包括邻接矩阵。三个方法使用同一患者划分、同一过去 5 秒图输入、同一训练集拟合的图属性均值与标准差，以及切点后第 1、3、5 秒的同一目标。
+本评估比较 **ODEBrainInspiredHMS、GraphGRU 和 persistence** 对相同未来电极节点属性的预测。属性是每个 1 秒图帧的五个 `log1p` 频带功率，不包括邻接矩阵。三个方法使用同一患者划分、同一过去 5 秒图输入、同一开发数据拟合的图属性均值与标准差，以及切点后第 1、3、5 秒的同一目标。初训协议的开发数据仅为 `train`；固定轮数 refit 协议为 `train+val`。
 
 ## 正式运行
 
@@ -26,6 +26,22 @@ LD_LIBRARY_PATH=/export/usr/python/3.8.9/lib .venv/bin/python scripts/evaluate_f
 ```
 
 正式模式只评估完整、已质量审核 manifest 的 `test` 患者中**预测 eligible** 的窗口。脚本核对原始数据覆盖、患者互斥、manifest SHA256、checkpoint 内部配置、训练窗口快照、归一化参数、预测时间，以及 v2 缓存的原测试窗口数、eligible/excluded 数、原因计数和 eligible ID 哈希。任一前提不满足即报错，不写正式 JSON。`--graph-cache-dir` 可省略，此时读取 ODE run 配置中的缓存路径；正式模式若两处都没有 v2 资格缓存则报错，不能直接退回逐窗口原始 EEG 计算。
+
+## 固定轮数 train+val refit 对照
+
+两个预测预训练 run 按[最终 refit 协议](refit_final.md)完成后，可比较其冻结的 `final.pt`。该模式不重新选择轮数或 checkpoint，也不读取分类 refit 权重；分类任务权重会被拒绝。评估器逐个调用 refit 完成校验，核对验证集选定轮数、原始 `best.pt`、最终 `final.pt`、完成记录、训练快照和开发集拟合的归一化。ODE 与 GraphGRU 必须使用完全相同的预测合格 `train+val` 窗口、标准化参数和 v2 缓存。输出与初训结果分开保存；两者测试范围和 MAE 定义相同，但训练协议不同。
+
+```bash
+LD_LIBRARY_PATH=/export/usr/python/3.8.9/lib .venv/bin/python scripts/evaluate_forecast.py \
+  --protocol refit \
+  --ode-run-dir artifacts/refit/ode_pretrain \
+  --gru-run-dir artifacts/refit/graph_gru_pretrain \
+  --manifest data/curated/split_manifest.csv \
+  --graph-cache-dir data/training/graph_forecast_v2 \
+  --output results/refit/forecast_comparison.json
+```
+
+省略 `--output` 时，refit 模式默认使用 `results/refit/forecast_comparison.json`。JSON 的 `training_protocol=train_val_fixed_epoch_refit`；每个模型的 provenance 记录固定轮数、原始验证集最佳 checkpoint 的 SHA256、refit 快照/完成记录及最终 checkpoint 的 SHA256。该模式仅支持正式 `test` 预测合格子集，不能与 `--smoke` 合用。
 
 ## 小样本接口检查
 

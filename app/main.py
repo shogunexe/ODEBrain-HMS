@@ -35,6 +35,14 @@ def _json(path):
         return None
 
 
+def _sha256(path):
+    digest = hashlib.sha256()
+    with Path(path).open("rb") as handle:
+        for block in iter(lambda: handle.read(1024 * 1024), b""):
+            digest.update(block)
+    return digest.hexdigest()
+
+
 def _contained(root, relative):
     path = (root / relative).resolve()
     if root != path and root not in path.parents:
@@ -98,10 +106,12 @@ def _download_figures(case_dir, meta):
 
 
 def _case_picker(result_root):
-    dynamics_root = result_root / "dynamics"
+    final_root = result_root / "dynamics_refit"
+    dynamics_root = (final_root if (final_root / "result_index.json").is_file()
+                     else result_root / "dynamics")
     index = _json(dynamics_root / "result_index.json")
     if not index or not index.get("cases"):
-        _empty("缺少 results/dynamics/result_index.json 或真实案例。请先运行 scripts/export_dynamics.py。")
+        _empty("缺少正式或初训动力学案例。请先运行 scripts/export_dynamics.py。")
         return None
     if index.get("provenance") != "real_hms_checkpoint":
         st.warning("真实 HMS 子集 smoke：案例使用真实数据，但训练/文件覆盖尚未达到正式实验条件。覆盖率：%.2f%%。图仅供流程验证，不能作为正式证据。" % (
@@ -235,6 +245,9 @@ def _metric_rows(result_root):
             if not run_dir.is_absolute():
                 run_dir = ROOT / run_dir
             config = _json(run_dir / "config.json")
+            phase = ("train_val_refit" if obj.get("training_protocol") ==
+                     "train_val_fixed_epoch_refit" else "initial_train_only")
+            seed = (config.get("refit", {}).get("seed", 42) if config else 42)
             if config:
                 manifest = Path(config.get("data", {}).get("manifest", "data/curated/split_manifest.csv"))
                 if not manifest.is_absolute():
@@ -261,14 +274,32 @@ def _metric_rows(result_root):
                 provenance = "real_hms_smoke"
             elif (obj.get("smoke_subset") is False and file_coverage == 1.0
                   and full_row_coverage and split_coverage
+                  and obj.get("experiment_status") == "formal"
+                  and obj.get("synthetic") is False
+                  and phase == "train_val_refit"
+                  and obj.get("split") == "test"
+                  and obj.get("test_used_for_selection") is False
+                  and config is not None
+                  and config.get("schema_version") == "hms_final_refit_v1"
+                  and (run_dir / "final.pt").is_file()
+                  and (completed := _json(run_dir / "completed.json")) is not None
+                  and completed.get("final_checkpoint_sha256") ==
+                      obj.get("checkpoint_sha256") == _sha256(run_dir / "final.pt")):
+                provenance = "formal"
+            elif (obj.get("smoke_subset") is False and file_coverage == 1.0
+                  and full_row_coverage and split_coverage
                   and obj.get("evaluation_scope") == "full_split"):
                 provenance = "formal"
             else:
                 provenance = "unverified"
             run_name = Path(obj.get("run_dir", path.parent)).name
             model_name = obj.get("model_id") or "%s:%s" % (obj.get("model", path.parent.name), run_name)
+            if phase == "train_val_refit":
+                model_name += " · train+val 重训 · seed %s" % seed
             rows.append({"model": model_name,
                          "split": obj.get("split", path.name.split("_")[0]),
+                         "phase": phase,
+                         "seed": seed,
                          "split_hash": split_hash or "未记录",
                          "provenance": provenance, "file_coverage": file_coverage,
                          "KL": obj.get("kl_window_mean"), "Macro-F1": obj.get("macro_f1"),
@@ -338,6 +369,8 @@ def _spark_metric_rows(path, obj):
             else:
                 provenance = "unverified"
             result.append({"model": "Spark {}".format(name.upper()), "split": split,
+                           "phase": "spark_train_only",
+                           "seed": 42,
                            "split_hash": split_hash, "provenance": provenance,
                            "file_coverage": file_coverage,
                            "KL": metric.get("kl_window_mean"),
@@ -381,17 +414,19 @@ def page_models(result_root):
     if not rows:
         _empty("缺少正式 metrics JSON；KL、Macro-F1、混淆矩阵和消融结果未生成。")
         return
-    table = pd.DataFrame([{k: r[k] for k in ("model", "split", "split_hash", "provenance", "file_coverage",
+    table = pd.DataFrame([{k: r[k] for k in ("model", "split", "phase", "seed", "split_hash", "provenance", "file_coverage",
                                                    "KL", "Macro-F1", "windows", "patients")} for r in rows])
-    groups = sorted(set((r["split_hash"], r["split"]) for r in rows))
-    group_labels = ["%s · %s" % (item[1], item[0]) for item in groups]
-    formal_test = next((i for i, (hash_value, split_name) in enumerate(groups)
-                        if split_name == "test" and all(
+    groups = sorted(set((r["split_hash"], r["split"], r["phase"], r["seed"]) for r in rows))
+    group_labels = ["%s · %s · seed %s · %s" % (item[1], item[2], item[3], item[0]) for item in groups]
+    formal_test = next((i for i, (hash_value, split_name, phase, seed) in enumerate(groups)
+                        if split_name == "test" and phase == "train_val_refit" and seed == 42 and all(
                             row["provenance"] == "formal" for row in rows
-                            if row["split_hash"] == hash_value and row["split"] == split_name)), 0)
-    split_hash, split = groups[group_labels.index(st.selectbox(
+                            if row["split_hash"] == hash_value and row["split"] == split_name
+                            and row["phase"] == phase and row["seed"] == seed)), 0)
+    split_hash, split, phase, seed = groups[group_labels.index(st.selectbox(
         "仅比较相同患者划分", group_labels, index=formal_test))]
-    section = table[(table["split"] == split) & (table["split_hash"] == split_hash)]
+    section = table[(table["split"] == split) & (table["split_hash"] == split_hash)
+                    & (table["phase"] == phase) & (table["seed"] == seed)]
     st.dataframe(section, use_container_width=True)
     if split_hash == "未记录":
         st.warning("这些指标文件没有 split_hash，无法验证它们使用同一患者划分。")
@@ -405,6 +440,7 @@ def page_models(result_root):
                   if (section["provenance"] != "formal").any() else None)
     _plot(fig, "model_metrics_" + split + "_" + split_hash[:12], meta=chart_meta)
     eligible = [r for r in rows if r["split"] == split and r["split_hash"] == split_hash
+                and r["phase"] == phase and r["seed"] == seed
                 and r["confusion_matrix"] is not None]
     if eligible:
         model_labels = ["%d · %s" % (i, item["model"]) for i, item in enumerate(eligible)]
@@ -441,6 +477,7 @@ def page_models(result_root):
     else:
         prediction_files = sorted({path for row in rows
                                    if row["split"] == split and row["split_hash"] == split_hash
+                                   and row["phase"] == phase and row["seed"] == seed
                                    for path in [row["path"].parent / (split + "_predictions.csv")]
                                    if path.is_file()})
         if prediction_files:

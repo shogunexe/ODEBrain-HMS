@@ -27,6 +27,7 @@ from torch.utils.data import DataLoader
 from src.cli import file_sha256, input_modalities, make_model, require_full_data
 from src.data.dataset import (HMSWindowDataset, RecordingBatchSampler,
                               fit_graph_normalizer, hms_collate)
+from src.data.graph_cache import GraphCacheReader
 from src.data.hms import CLASSES, manifest_hash
 from src.evaluation.metrics import classification_metrics, patient_bootstrap_kl
 from src.training.engine import load_checkpoint, save_checkpoint, train_epoch
@@ -82,6 +83,30 @@ def _manifest_view(path):
     return table, ids, patients
 
 
+def _forecast_eligible_ids(config, manifest, table, ids):
+    """Use the exact eligible population frozen by the forecast cache."""
+    data = config.get("data", {})
+    cache = data.get("graph_cache_dir")
+    if not cache:
+        raise ValueError("Forecast refit requires a forecast eligibility cache")
+    cache = Path(cache)
+    if not cache.is_absolute():
+        cache = ROOT / cache
+    reader = GraphCacheReader(
+        manifest, cache, task="forecast",
+        forecast_cut_seconds=int(data.get("forecast_cut_seconds", 5)),
+        forecast_horizons=tuple(data.get("forecast_horizons", (1, 3, 5))))
+    result = {}
+    for split, values in ids.items():
+        if any(window_id not in reader.eligibility for window_id in values):
+            raise ValueError("Forecast cache lacks audited %s window IDs" % split)
+        result[split] = [window_id for window_id in values
+                         if reader.eligibility[window_id] == "ok"]
+        if not result[split]:
+            raise ValueError("Forecast cache has no eligible %s windows" % split)
+    return result
+
+
 def _source_run(source_dir, require_full=True):
     source_dir = Path(source_dir).resolve()
     config_path = source_dir / "config.json"
@@ -104,6 +129,11 @@ def _source_run(source_dir, require_full=True):
     if file_sha256(manifest) != config.get("manifest_sha256"):
         raise ValueError("Source manifest hash differs from current manifest")
     table, ids, patients = _manifest_view(manifest)
+    task = config.get("data", {}).get("task", "classification")
+    if task == "forecast":
+        ids = _forecast_eligible_ids(config, manifest, table, ids)
+        patient_by_id = table.set_index(table.window_id.astype(str)).patient_id.astype(str)
+        patients = {split: set(patient_by_id.loc[values]) for split, values in ids.items()}
     snapshot = json.loads(snapshot_path.read_text(encoding="utf-8"))
     if file_sha256(snapshot_path) != config.get("window_snapshot_sha256"):
         raise ValueError("Source training snapshot hash mismatch")
@@ -140,7 +170,6 @@ def _source_run(source_dir, require_full=True):
                         float(checkpoint.get("best_val_score", float("nan"))),
                         rel_tol=1e-6, abs_tol=1e-8):
         raise ValueError("Source validation record differs from selected checkpoint")
-    task = config.get("data", {}).get("task", "classification")
     if task == "forecast":
         if name not in GRAPH_MODELS or float(config["training"].get("forecast_weight", 0)) <= 0:
             raise ValueError("Only graph models may have forecast refit sources")
@@ -287,8 +316,12 @@ def _make_dev_dataset(source, normalizer, graph_cache_dir=None):
                                graph_cache_dir=cache,
                                graph_mean=None if normalizer is None else normalizer[0],
                                graph_std=None if normalizer is None else normalizer[1])
+    if (source["task"] == "forecast" and
+            set(dataset.rows.window_id.astype(str)) != set(source["ids"]["train"])):
+        raise ValueError("Forecast cache eligible train IDs changed since source training")
+    eligible = set(source["ids"]["train"] + source["ids"]["val"])
     rows = source["table"].loc[(source["table"].audit_reason == "ok") &
-                                source["table"].split.isin(("train", "val"))].copy()
+                                source["table"].window_id.astype(str).isin(eligible)].copy()
     dataset.rows = rows.sort_values("window_id").reset_index(drop=True)
     if set(dataset.rows.window_id.astype(str)) != set(source["ids"]["train"] + source["ids"]["val"]):
         raise ValueError("Refit dataset differs from frozen development windows")
