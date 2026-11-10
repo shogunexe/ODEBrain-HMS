@@ -247,7 +247,7 @@ def validate_checkpoint(name, plan, expected, manifest_path, init_sha=None):
             "config_sha256": sha256(config_path), "best_epoch": checkpoint["epoch"]}
 
 
-def validate_metric(metric, test, split_hash, name):
+def validate_metric(metric, test, split_hash, name, expected_coverage=1.0):
     require(metric.get("smoke_subset") is False and metric.get("synthetic", False) is False
             and metric.get("evaluation_scope") == "full_split",
             "Evaluation is smoke or partial: " + name)
@@ -257,7 +257,10 @@ def validate_metric(metric, test, split_hash, name):
     require(metric.get("n_windows") == len(test) and
             metric.get("n_patients") == int(test.patient_id.nunique()),
             "Test window/patient counts differ: " + name)
-    require(metric.get("metadata_eeg_coverage") == 1.0, "Incomplete EEG coverage: " + name)
+    require(isinstance(metric.get("metadata_eeg_coverage"), (int, float)) and
+            math.isclose(metric["metadata_eeg_coverage"], expected_coverage,
+                         rel_tol=0, abs_tol=1e-12),
+            "Metric valid-recording coverage differs from audited manifest: " + name)
     for field in ("kl_window_mean", "kl_patient_equal_mean", "macro_f1"):
         value = metric.get(field)
         require(isinstance(value, (int, float)) and not isinstance(value, bool)
@@ -300,7 +303,9 @@ def validate_predictions(path, test, metric):
 
 
 def collect(plan_path, plan, configs):
-    manifest_path, _, test, split_hash = ensure_full_manifest(configs)
+    manifest_path, table, test, split_hash = ensure_full_manifest(configs)
+    expected_coverage = float(table.loc[table.audit_reason == "ok", "eeg_id"].nunique() /
+                              table.eeg_id.nunique())
     pre = validate_checkpoint("pretrain", plan, configs["pretrain"], manifest_path)
     rows = []
     for arm in plan["arms"]:
@@ -315,7 +320,7 @@ def collect(plan_path, plan, configs):
                 predictions_path.stat().st_mtime >= Path(run["checkpoint"]).stat().st_mtime,
                 "Test evaluation predates best checkpoint: " + name)
         metric = read_json(metric_path)
-        validate_metric(metric, test, split_hash, name)
+        validate_metric(metric, test, split_hash, name, expected_coverage)
         require(resolve(metric.get("run_dir", "missing")) == run_dir,
                 "Metric refers to a different run: " + name)
         validate_predictions(predictions_path, test, metric)

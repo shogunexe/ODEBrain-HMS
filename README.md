@@ -2,11 +2,11 @@
 
 课程项目：《基于 Spark 与 ODEBrain 连续动力学建模的 EEG 异常脑电活动分析与可视化系统》。当前目录是实施中的研究代码。**没有真实 HMS 实验结果时，不应把合成测试当成分类表现。**
 
-## 当前状态（2026-11-09 16:28 Asia/Shanghai）
+## 当前状态（2026-11-10 13:50 Asia/Shanghai）
 
 - 已实现 HMS 元数据审计、患者级划分、EEG 窗口与图特征、Spark 特征和 LR/RF 基线、四种深度对照、ODEBrain-inspired HMS、评估指标与可视化代码。
 - 本机实测 2×V100S 32GB、40 CPU、251 GiB RAM；详见 [环境盘点](docs/environment.md)。不以方案中的 8×A100 预算制定实验结论。
-- Kaggle 账号已接受[竞赛规则](https://www.kaggle.com/competitions/hms-harmful-brain-activity-classification/rules)。19,762,787,900 字节的官方训练数据 ZIP 已下载完整并通过 `unzip -t` 全包校验；17,300 个 EEG 和 11,138 个频谱文件均已解压。全量质量审计覆盖 106,800 条标注、17,089 个被引用 EEG 文件，保留 106,587 个有效分类窗口；患者级 train/val/test 分别为 67,114/16,835/22,638 个窗口，split SHA256 为 `f334b0e31f5faf520f85a2d4c79631caf7edef2102460a8bcd629fc2a699a82f`。全量 Spark 特征、LR/RF 基线和三方法 36 次性能基准已完成；TCN、频谱 CNN、融合模型完成初训、完整测试和 train+val 固定轮次重训。ODE 分类初训与图模型重训正在两张 GPU 上并行。预测任务专用 `graph_forecast_v2` 缓存已建成，其中 106,434 个分类有效窗口适于预测，测试集 22,606 个适于预测；冻结的 36 文件、364 窗口子集仅用于 smoke。
+- Kaggle 账号已接受[竞赛规则](https://www.kaggle.com/competitions/hms-harmful-brain-activity-classification/rules)。19,762,787,900 字节的官方训练数据 ZIP 已下载完整并通过 `unzip -t` 全包校验；17,300 个 EEG 和 11,138 个频谱文件均已解压。全量质量审计覆盖 106,800 条标注、17,089 个被引用 EEG 文件，保留 106,587 个有效分类窗口；患者级 train/val/test 分别为 67,114/16,835/22,638 个窗口，split SHA256 为 `f334b0e31f5faf520f85a2d4c79631caf7edef2102460a8bcd629fc2a699a82f`。全量 Spark 特征、LR/RF 基线和三方法 36 次性能基准已完成。五个深度分类模型均已完成初训和完整测试，五模型 train+val 固定轮次重训主表也已生成；融合重训测试 KL 1.0530 最好，ODE 重训 KL 1.6276，并未在分类上领先。预测任务专用 `graph_forecast_v2` 缓存有 106,434 个 eligible 窗口，测试集 22,606 个；ODE 和 GraphGRU 初训预测均优于 persistence。消融、最终图动力学导出和本地预览 PDF 正在运行。冻结的 36 文件、364 窗口子集仅用于 smoke。
 - 模型名 **ODEBrainInspiredHMS**；这是独立重写的 HMS 改造版，不是完整官方代码移植。[审计与偏离](docs/odebrain_adaptation.md)。
 
 ## 数据与研究边界

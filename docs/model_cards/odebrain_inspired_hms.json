@@ -1,0 +1,137 @@
+{
+  "schema_version": "hms_model_card_v1",
+  "model": "odebrain_inspired_hms",
+  "status": "formal",
+  "task": "offline_six_class_eeg_classification",
+  "run_dir": "artifacts/runs/ode_finetune",
+  "config": "artifacts/runs/ode_finetune/config.json",
+  "config_sha256": "0bc36c1447cc3fdb96d5ae4422a720ac06f95aa8b79f3356a903de0c8f53d04f",
+  "source_config": "configs/models/odebrain_inspired_hms.yaml",
+  "source_config_sha256": "afeff35f1bcf4d2beee1cf561fa4a403d2177f51cc4d4c1b7d8f693ab4b75cd7",
+  "checkpoint": "artifacts/runs/ode_finetune/best.pt",
+  "weights_sha256": "dea1947b54097d9520f01bdc6ef7fd400bea3b9278ef79d1fa8e09c6a3a8da22",
+  "completion": "artifacts/runs/ode_finetune/completed.json",
+  "completion_sha256": "5fac24133f47244f44733c2f9d1f07bd8cc51db44b5c3b5bfd4c49aa63c842a9",
+  "window_snapshot": "artifacts/runs/ode_finetune/window_snapshot.json",
+  "window_snapshot_sha256": "524cc7afd4e5aff806981b6924be006d8c9f50453e72c09eed94f8595f55d828",
+  "graph_normalizer": "artifacts/runs/ode_finetune/graph_normalizer.npz",
+  "graph_normalizer_sha256": "36ac055016ea4cea31c67be138da5cf788eabd646907c5efbf11e96be487e837",
+  "manifest": "data/curated/split_manifest.csv",
+  "manifest_file_sha256": "685b4ee306a37b73ce01a3c4671eeed11850c6c0ef2c6c11131c79646d7f09c0",
+  "split_summary": "data/curated/split_manifest.json",
+  "split_summary_sha256": "77691c7955075063a141ca087fdcc33c59c54ac56e7cb93fb0ecf02fa998f45b",
+  "split_hash": "f334b0e31f5faf520f85a2d4c79631caf7edef2102460a8bcd629fc2a699a82f",
+  "metadata": "data/raw/train.csv",
+  "metadata_sha256": "e13cc8c7a040c6db5adfb850ee0c2e605365f7e1b7e34ee231c52717886a7886",
+  "split_counts": {
+    "train": {
+      "windows": 67114,
+      "patients": 1245
+    },
+    "val": {
+      "windows": 16835,
+      "patients": 311
+    },
+    "test": {
+      "windows": 22638,
+      "patients": 389
+    }
+  },
+  "input_modalities": {
+    "raw_eeg": true,
+    "spectrogram": false,
+    "graph": true
+  },
+  "input_channels": [
+    "Fp1",
+    "F3",
+    "C3",
+    "P3",
+    "F7",
+    "T3",
+    "T5",
+    "O1",
+    "Fz",
+    "Cz",
+    "Pz",
+    "Fp2",
+    "F4",
+    "C4",
+    "P4",
+    "F8",
+    "T4",
+    "T6",
+    "O2"
+  ],
+  "sample_rate_hz": 200,
+  "window_seconds": 50,
+  "label_region_seconds": [
+    20,
+    30
+  ],
+  "classes": [
+    "seizure",
+    "lpd",
+    "gpd",
+    "lrda",
+    "grda",
+    "other"
+  ],
+  "model_kwargs": {
+    "node_features": 5,
+    "num_nodes": 19,
+    "hidden_dim": 64,
+    "raw_dim": 32,
+    "num_classes": 6,
+    "rk4_step_seconds": 0.25
+  },
+  "training": {
+    "epochs": 30,
+    "batch_size": 8,
+    "lr": 0.001,
+    "weight_decay": 0.01,
+    "classification_weight": 1.0,
+    "forecast_weight": 0.0,
+    "patience": 8,
+    "grad_clip": 1.0
+  },
+  "pretraining": {
+    "path": "artifacts/runs/ode_pretrain/best.pt",
+    "sha256": "925e13335bb277c0229cd3e098f9a5691c019078e6a961c2b4bdc4d0883149d0",
+    "model": "odebrain_inspired_hms"
+  },
+  "best_epoch_zero_indexed": 15,
+  "best_validation_kl_during_training": 1.0315277384418233,
+  "evaluation": {
+    "val": {
+      "path": "results/ode_finetune/val_metrics.json",
+      "sha256": "180e1d63a0da00adf8659443bf53cd2ffc7a08b93fb4647ed73121932bd11c92",
+      "predictions": "results/ode_finetune/val_predictions.csv",
+      "predictions_sha256": "c80e7b600e1e42bf0d4122bf819d65f1f821a21ae295f13a28fd10dc5d814de1",
+      "n_windows": 16835,
+      "n_patients": 311,
+      "kl_window_mean": 1.0315277183914986,
+      "kl_patient_equal_mean": 1.1885258744124996,
+      "macro_f1": 0.44700579499396875,
+      "patient_bootstrap_ci95": [
+        1.1141653655460024,
+        1.264083810376539
+      ]
+    },
+    "test": {
+      "path": "results/ode_finetune/test_metrics.json",
+      "sha256": "42f28c9a073b3cacaf3268e5c7f21057af7ffa0f5203386abfe7aa8803269eeb",
+      "predictions": "results/ode_finetune/test_predictions.csv",
+      "predictions_sha256": "349a231b41e6aae5afa74cfb0d8b60fcb86f7d680849a50981b343d712ebd48b",
+      "n_windows": 22638,
+      "n_patients": 389,
+      "kl_window_mean": 1.1668252698985773,
+      "kl_patient_equal_mean": 1.2214656217514783,
+      "macro_f1": 0.38526711362622246,
+      "patient_bootstrap_ci95": [
+        1.1557788970127785,
+        1.2864528604375614
+      ]
+    }
+  }
+}

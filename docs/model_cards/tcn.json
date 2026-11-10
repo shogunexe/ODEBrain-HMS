@@ -1,0 +1,131 @@
+{
+  "schema_version": "hms_model_card_v1",
+  "model": "tcn",
+  "status": "formal",
+  "task": "offline_six_class_eeg_classification",
+  "run_dir": "artifacts/runs/tcn",
+  "config": "artifacts/runs/tcn/config.json",
+  "config_sha256": "760abcacc0544ef27f8a512ecc22803237d7a4c18ac4ffb38ae68b23937f87be",
+  "source_config": "configs/models/tcn.yaml",
+  "source_config_sha256": "bd7a14dfe52e5e85569d22bb293556911cc4f9f0cc04fdae2a585f39663ae48e",
+  "checkpoint": "artifacts/runs/tcn/best.pt",
+  "weights_sha256": "8d79b69e91c704a12816dc81793ea77156673cfc3a8b6514673100ea0737a1d5",
+  "completion": "artifacts/runs/tcn/completed.json",
+  "completion_sha256": "c5f663007b5d9c2361d5790a1b2edc3bad3114b1ee87e2cf209fc0a42bcf2e1f",
+  "window_snapshot": "artifacts/runs/tcn/window_snapshot.json",
+  "window_snapshot_sha256": "524cc7afd4e5aff806981b6924be006d8c9f50453e72c09eed94f8595f55d828",
+  "graph_normalizer": "artifacts/runs/tcn/graph_normalizer.npz",
+  "graph_normalizer_sha256": "c2f04c4f7e0e8536881229f8c751dc3a422003205aeabf35d53efe0e5e0dc5a3",
+  "manifest": "data/curated/split_manifest.csv",
+  "manifest_file_sha256": "685b4ee306a37b73ce01a3c4671eeed11850c6c0ef2c6c11131c79646d7f09c0",
+  "split_summary": "data/curated/split_manifest.json",
+  "split_summary_sha256": "77691c7955075063a141ca087fdcc33c59c54ac56e7cb93fb0ecf02fa998f45b",
+  "split_hash": "f334b0e31f5faf520f85a2d4c79631caf7edef2102460a8bcd629fc2a699a82f",
+  "metadata": "data/raw/train.csv",
+  "metadata_sha256": "e13cc8c7a040c6db5adfb850ee0c2e605365f7e1b7e34ee231c52717886a7886",
+  "split_counts": {
+    "train": {
+      "windows": 67114,
+      "patients": 1245
+    },
+    "val": {
+      "windows": 16835,
+      "patients": 311
+    },
+    "test": {
+      "windows": 22638,
+      "patients": 389
+    }
+  },
+  "input_modalities": {
+    "raw_eeg": true,
+    "spectrogram": false,
+    "graph": false
+  },
+  "input_channels": [
+    "Fp1",
+    "F3",
+    "C3",
+    "P3",
+    "F7",
+    "T3",
+    "T5",
+    "O1",
+    "Fz",
+    "Cz",
+    "Pz",
+    "Fp2",
+    "F4",
+    "C4",
+    "P4",
+    "F8",
+    "T4",
+    "T6",
+    "O2"
+  ],
+  "sample_rate_hz": 200,
+  "window_seconds": 50,
+  "label_region_seconds": [
+    20,
+    30
+  ],
+  "classes": [
+    "seizure",
+    "lpd",
+    "gpd",
+    "lrda",
+    "grda",
+    "other"
+  ],
+  "model_kwargs": {
+    "eeg_channels": 19,
+    "num_classes": 6,
+    "width": 48,
+    "embedding_dim": 96,
+    "dropout": 0.1
+  },
+  "training": {
+    "epochs": 30,
+    "batch_size": 16,
+    "lr": 0.001,
+    "weight_decay": 0.01,
+    "forecast_weight": 0.0,
+    "patience": 8,
+    "grad_clip": 1.0
+  },
+  "pretraining": null,
+  "best_epoch_zero_indexed": 20,
+  "best_validation_kl_during_training": 1.0489553492984292,
+  "evaluation": {
+    "val": {
+      "path": "results/tcn/val_metrics.json",
+      "sha256": "10b6db171f1858490559b21705d99c9d25dec180a5d0b5e8d124bdd0d8ac87c6",
+      "predictions": "results/tcn/val_predictions.csv",
+      "predictions_sha256": "259aeb5f557e940aa4a2f488abf731bee54884ec3829798843a146ea127b4ad3",
+      "n_windows": 16835,
+      "n_patients": 311,
+      "kl_window_mean": 1.0489553253533608,
+      "kl_patient_equal_mean": 1.143650818910968,
+      "macro_f1": 0.49958191940011837,
+      "patient_bootstrap_ci95": [
+        1.0575826878085337,
+        1.2371214319589083
+      ]
+    },
+    "test": {
+      "path": "results/tcn/test_metrics.json",
+      "sha256": "f607bf7fc211e805fb2ebac1bd88bbbbd79150bbdbd7cbb8509e5a7b58d581e8",
+      "predictions": "results/tcn/test_predictions.csv",
+      "predictions_sha256": "dc41a30840bf0ccc6ec51ef6e90bda377879892715613a101e9fb70800cb5922",
+      "n_windows": 22638,
+      "n_patients": 389,
+      "kl_window_mean": 1.1965777038638998,
+      "kl_patient_equal_mean": 1.1786576414381438,
+      "macro_f1": 0.4579057609930613,
+      "patient_bootstrap_ci95": [
+        1.098583058815374,
+        1.2599582147145028
+      ]
+    }
+  }
+}

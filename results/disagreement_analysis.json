@@ -1,0 +1,457 @@
+{
+  "schema_version": "hms_disagreement_analysis_v1",
+  "status": "formal",
+  "method": {
+    "entropy": "natural_log_of_normalized_six_class_expert_votes",
+    "threshold_source": "full_validation_split_median",
+    "threshold_nats": 0.5004024235381879,
+    "low_rule": "test_entropy <= threshold",
+    "high_rule": "test_entropy > threshold",
+    "threshold_validation_windows": 16835,
+    "bootstrap": "paired_patient_resampling_of_within_patient_mean_differences",
+    "difference_direction": "ODE minus baseline"
+  },
+  "split_hash": "f334b0e31f5faf520f85a2d4c79631caf7edef2102460a8bcd629fc2a699a82f",
+  "manifest": "data/curated/split_manifest.csv",
+  "manifest_sha256": "685b4ee306a37b73ce01a3c4671eeed11850c6c0ef2c6c11131c79646d7f09c0",
+  "split_summary_sha256": "77691c7955075063a141ca087fdcc33c59c54ac56e7cb93fb0ecf02fa998f45b",
+  "runs": {
+    "tcn": {
+      "run_dir": "artifacts/runs/tcn",
+      "checkpoint_sha256": "8d79b69e91c704a12816dc81793ea77156673cfc3a8b6514673100ea0737a1d5",
+      "test_metrics_sha256": "f607bf7fc211e805fb2ebac1bd88bbbbd79150bbdbd7cbb8509e5a7b58d581e8",
+      "test_predictions_sha256": "dc41a30840bf0ccc6ec51ef6e90bda377879892715613a101e9fb70800cb5922"
+    },
+    "graph_gru": {
+      "run_dir": "artifacts/runs/graph_gru",
+      "checkpoint_sha256": "d2030b322304f199c472a045b0225fefdfbcc2db9b6e67e7ada82222b69fdd2f",
+      "test_metrics_sha256": "c3533aa5062e735556bbba9bf951f40fa34d1d1429f0058cc5384a769ce5cb96",
+      "test_predictions_sha256": "1ee169887941c4438e280efeae9f8e6c5aa3ca934ca9d48901a35a2820e719ba"
+    },
+    "odebrain_inspired_hms": {
+      "run_dir": "artifacts/runs/ode_finetune",
+      "checkpoint_sha256": "dea1947b54097d9520f01bdc6ef7fd400bea3b9278ef79d1fa8e09c6a3a8da22",
+      "test_metrics_sha256": "42f28c9a073b3cacaf3268e5c7f21057af7ffa0f5203386abfe7aa8803269eeb",
+      "test_predictions_sha256": "349a231b41e6aae5afa74cfb0d8b60fcb86f7d680849a50981b343d712ebd48b"
+    }
+  },
+  "metrics": {
+    "tcn": {
+      "all": {
+        "n_windows": 22638,
+        "n_patients": 389,
+        "kl_window_mean": 1.1965777040974521,
+        "kl_patient_equal_mean": 1.1786576419528427,
+        "accuracy_window": 0.4614806961745737,
+        "kl_patient_bootstrap": {
+          "n_patients": 389,
+          "patient_equal_mean": 1.1786576419528427,
+          "ci95": [
+            1.0974948387670163,
+            1.2614722477930782
+          ],
+          "resampling_unit": "patient",
+          "n_boot": 2000,
+          "seed": 42
+        },
+        "accuracy_patient_bootstrap": {
+          "n_patients": 389,
+          "patient_equal_mean": 0.4891016019514425,
+          "ci95": [
+            0.4543776199309633,
+            0.5243194351071121
+          ],
+          "resampling_unit": "patient",
+          "n_boot": 2000,
+          "seed": 42
+        }
+      },
+      "low": {
+        "n_windows": 13617,
+        "n_patients": 376,
+        "kl_window_mean": 1.2832688758256063,
+        "kl_patient_equal_mean": 1.277042749574172,
+        "accuracy_window": 0.5255195711243299,
+        "kl_patient_bootstrap": {
+          "n_patients": 376,
+          "patient_equal_mean": 1.277042749574172,
+          "ci95": [
+            1.1826834565719664,
+            1.373779287360551
+          ],
+          "resampling_unit": "patient",
+          "n_boot": 2000,
+          "seed": 42
+        },
+        "accuracy_patient_bootstrap": {
+          "n_patients": 376,
+          "patient_equal_mean": 0.5052555575730043,
+          "ci95": [
+            0.46797722151234666,
+            0.5419641434977568
+          ],
+          "resampling_unit": "patient",
+          "n_boot": 2000,
+          "seed": 42
+        }
+      },
+      "high": {
+        "n_windows": 9021,
+        "n_patients": 234,
+        "kl_window_mean": 1.0657192975546876,
+        "kl_patient_equal_mean": 0.9392700040287014,
+        "accuracy_window": 0.3648154306617892,
+        "kl_patient_bootstrap": {
+          "n_patients": 234,
+          "patient_equal_mean": 0.9392700040287014,
+          "ci95": [
+            0.860812655155163,
+            1.0217267388734643
+          ],
+          "resampling_unit": "patient",
+          "n_boot": 2000,
+          "seed": 42
+        },
+        "accuracy_patient_bootstrap": {
+          "n_patients": 234,
+          "patient_equal_mean": 0.4009428742713032,
+          "ci95": [
+            0.34967492027164865,
+            0.4529373423393546
+          ],
+          "resampling_unit": "patient",
+          "n_boot": 2000,
+          "seed": 42
+        }
+      }
+    },
+    "graph_gru": {
+      "all": {
+        "n_windows": 22638,
+        "n_patients": 389,
+        "kl_window_mean": 1.018091089754478,
+        "kl_patient_equal_mean": 1.1110149311123956,
+        "accuracy_window": 0.5316724092234296,
+        "kl_patient_bootstrap": {
+          "n_patients": 389,
+          "patient_equal_mean": 1.1110149311123956,
+          "ci95": [
+            1.0196602539573052,
+            1.2039715662655774
+          ],
+          "resampling_unit": "patient",
+          "n_boot": 2000,
+          "seed": 42
+        },
+        "accuracy_patient_bootstrap": {
+          "n_patients": 389,
+          "patient_equal_mean": 0.5185063175194463,
+          "ci95": [
+            0.48167560152921746,
+            0.5551304648972116
+          ],
+          "resampling_unit": "patient",
+          "n_boot": 2000,
+          "seed": 42
+        }
+      },
+      "low": {
+        "n_windows": 13617,
+        "n_patients": 376,
+        "kl_window_mean": 1.1592379230063812,
+        "kl_patient_equal_mean": 1.194792536339637,
+        "accuracy_window": 0.5946243666005728,
+        "kl_patient_bootstrap": {
+          "n_patients": 376,
+          "patient_equal_mean": 1.194792536339637,
+          "ci95": [
+            1.0954837058475833,
+            1.2920215136635331
+          ],
+          "resampling_unit": "patient",
+          "n_boot": 2000,
+          "seed": 42
+        },
+        "accuracy_patient_bootstrap": {
+          "n_patients": 376,
+          "patient_equal_mean": 0.5372225745582998,
+          "ci95": [
+            0.49807658909123764,
+            0.5778380103263094
+          ],
+          "resampling_unit": "patient",
+          "n_boot": 2000,
+          "seed": 42
+        }
+      },
+      "high": {
+        "n_windows": 9021,
+        "n_patients": 234,
+        "kl_window_mean": 0.8050330664321006,
+        "kl_patient_equal_mean": 0.9424477644560655,
+        "accuracy_window": 0.43664782174925176,
+        "kl_patient_bootstrap": {
+          "n_patients": 234,
+          "patient_equal_mean": 0.9424477644560655,
+          "ci95": [
+            0.8573516485252005,
+            1.0363750177024609
+          ],
+          "resampling_unit": "patient",
+          "n_boot": 2000,
+          "seed": 42
+        },
+        "accuracy_patient_bootstrap": {
+          "n_patients": 234,
+          "patient_equal_mean": 0.40700197906455915,
+          "ci95": [
+            0.3560205440575092,
+            0.4558700598117303
+          ],
+          "resampling_unit": "patient",
+          "n_boot": 2000,
+          "seed": 42
+        }
+      }
+    },
+    "odebrain_inspired_hms": {
+      "all": {
+        "n_windows": 22638,
+        "n_patients": 389,
+        "kl_window_mean": 1.1668252703734285,
+        "kl_patient_equal_mean": 1.2214656224810496,
+        "accuracy_window": 0.39212827988338195,
+        "kl_patient_bootstrap": {
+          "n_patients": 389,
+          "patient_equal_mean": 1.2214656224810496,
+          "ci95": [
+            1.15608418563342,
+            1.2865940639993454
+          ],
+          "resampling_unit": "patient",
+          "n_boot": 2000,
+          "seed": 42
+        },
+        "accuracy_patient_bootstrap": {
+          "n_patients": 389,
+          "patient_equal_mean": 0.4387313129943044,
+          "ci95": [
+            0.40299274351351183,
+            0.47394677259575924
+          ],
+          "resampling_unit": "patient",
+          "n_boot": 2000,
+          "seed": 42
+        }
+      },
+      "low": {
+        "n_windows": 13617,
+        "n_patients": 376,
+        "kl_window_mean": 1.3655598163240212,
+        "kl_patient_equal_mean": 1.3326963359675619,
+        "accuracy_window": 0.4484100756407432,
+        "kl_patient_bootstrap": {
+          "n_patients": 376,
+          "patient_equal_mean": 1.3326963359675619,
+          "ci95": [
+            1.2581299518940279,
+            1.406709344644646
+          ],
+          "resampling_unit": "patient",
+          "n_boot": 2000,
+          "seed": 42
+        },
+        "accuracy_patient_bootstrap": {
+          "n_patients": 376,
+          "patient_equal_mean": 0.46740047745117863,
+          "ci95": [
+            0.42851747894881476,
+            0.5072888609797069
+          ],
+          "resampling_unit": "patient",
+          "n_boot": 2000,
+          "seed": 42
+        }
+      },
+      "high": {
+        "n_windows": 9021,
+        "n_patients": 234,
+        "kl_window_mean": 0.8668398682883803,
+        "kl_patient_equal_mean": 0.8667811471311099,
+        "accuracy_window": 0.30717215386320806,
+        "kl_patient_bootstrap": {
+          "n_patients": 234,
+          "patient_equal_mean": 0.8667811471311099,
+          "ci95": [
+            0.8071852274625256,
+            0.9273796247383442
+          ],
+          "resampling_unit": "patient",
+          "n_boot": 2000,
+          "seed": 42
+        },
+        "accuracy_patient_bootstrap": {
+          "n_patients": 234,
+          "patient_equal_mean": 0.35778099674609637,
+          "ci95": [
+            0.3122647346292145,
+            0.40451957659182813
+          ],
+          "resampling_unit": "patient",
+          "n_boot": 2000,
+          "seed": 42
+        }
+      }
+    }
+  },
+  "paired_comparisons": {
+    "ode_minus_graph_gru": {
+      "all": {
+        "kl_patient_equal_difference": {
+          "n_patients": 389,
+          "ci95": [
+            0.0327372980906305,
+            0.18618589596052673
+          ],
+          "resampling_unit": "patient",
+          "n_boot": 2000,
+          "seed": 42,
+          "difference_patient_equal_mean": 0.11045069136865412
+        },
+        "accuracy_patient_equal_difference": {
+          "n_patients": 389,
+          "ci95": [
+            -0.11549721296710576,
+            -0.04325880296712946
+          ],
+          "resampling_unit": "patient",
+          "n_boot": 2000,
+          "seed": 42,
+          "difference_patient_equal_mean": -0.07977500452514191
+        }
+      },
+      "low": {
+        "kl_patient_equal_difference": {
+          "n_patients": 376,
+          "ci95": [
+            0.05699583359507613,
+            0.21904864028487422
+          ],
+          "resampling_unit": "patient",
+          "n_boot": 2000,
+          "seed": 42,
+          "difference_patient_equal_mean": 0.13790379962792496
+        },
+        "accuracy_patient_equal_difference": {
+          "n_patients": 376,
+          "ci95": [
+            -0.10967771610239743,
+            -0.02895091138895556
+          ],
+          "resampling_unit": "patient",
+          "n_boot": 2000,
+          "seed": 42,
+          "difference_patient_equal_mean": -0.06982209710712112
+        }
+      },
+      "high": {
+        "kl_patient_equal_difference": {
+          "n_patients": 234,
+          "ci95": [
+            -0.1659387176476164,
+            0.010956844960006533
+          ],
+          "resampling_unit": "patient",
+          "n_boot": 2000,
+          "seed": 42,
+          "difference_patient_equal_mean": -0.07566661732495565
+        },
+        "accuracy_patient_equal_difference": {
+          "n_patients": 234,
+          "ci95": [
+            -0.10328368897969596,
+            0.005631246712005294
+          ],
+          "resampling_unit": "patient",
+          "n_boot": 2000,
+          "seed": 42,
+          "difference_patient_equal_mean": -0.049220982318462725
+        }
+      }
+    },
+    "ode_minus_tcn": {
+      "all": {
+        "kl_patient_equal_difference": {
+          "n_patients": 389,
+          "ci95": [
+            -0.04206087811342992,
+            0.12874012686035338
+          ],
+          "resampling_unit": "patient",
+          "n_boot": 2000,
+          "seed": 42,
+          "difference_patient_equal_mean": 0.042807980528206994
+        },
+        "accuracy_patient_equal_difference": {
+          "n_patients": 389,
+          "ci95": [
+            -0.09272834927853,
+            -0.009013035127272685
+          ],
+          "resampling_unit": "patient",
+          "n_boot": 2000,
+          "seed": 42,
+          "difference_patient_equal_mean": -0.05037028895713802
+        }
+      },
+      "low": {
+        "kl_patient_equal_difference": {
+          "n_patients": 376,
+          "ci95": [
+            -0.043265870541495124,
+            0.1512532598697836
+          ],
+          "resampling_unit": "patient",
+          "n_boot": 2000,
+          "seed": 42,
+          "difference_patient_equal_mean": 0.0556535863933897
+        },
+        "accuracy_patient_equal_difference": {
+          "n_patients": 376,
+          "ci95": [
+            -0.08607793231729706,
+            0.008135166196434467
+          ],
+          "resampling_unit": "patient",
+          "n_boot": 2000,
+          "seed": 42,
+          "difference_patient_equal_mean": -0.03785508012182561
+        }
+      },
+      "high": {
+        "kl_patient_equal_difference": {
+          "n_patients": 234,
+          "ci95": [
+            -0.16216535962092435,
+            0.014354451258697403
+          ],
+          "resampling_unit": "patient",
+          "n_boot": 2000,
+          "seed": 42,
+          "difference_patient_equal_mean": -0.07248885689759152
+        },
+        "accuracy_patient_equal_difference": {
+          "n_patients": 234,
+          "ci95": [
+            -0.1006844232462577,
+            0.009705881893173285
+          ],
+          "resampling_unit": "patient",
+          "n_boot": 2000,
+          "seed": 42,
+          "difference_patient_equal_mean": -0.04316187752520679
+        }
+      }
+    }
+  }
+}

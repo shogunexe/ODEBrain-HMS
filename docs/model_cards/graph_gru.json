@@ -1,0 +1,140 @@
+{
+  "schema_version": "hms_model_card_v1",
+  "model": "graph_gru",
+  "status": "formal",
+  "task": "offline_six_class_eeg_classification",
+  "run_dir": "artifacts/runs/graph_gru",
+  "config": "artifacts/runs/graph_gru/config.json",
+  "config_sha256": "3015af5f1e2e409a68cbcd69dd07435f3a91ef44ad2f0b131baf5eb3ce1df7c8",
+  "source_config": "configs/models/graph_gru.yaml",
+  "source_config_sha256": "f84cdcf5237326918194a45f7f526115189e98db87eed997cf2a34fd86c74d14",
+  "checkpoint": "artifacts/runs/graph_gru/best.pt",
+  "weights_sha256": "d2030b322304f199c472a045b0225fefdfbcc2db9b6e67e7ada82222b69fdd2f",
+  "completion": "artifacts/runs/graph_gru/completed.json",
+  "completion_sha256": "e9a557ddd0a7641c101b3e0fad46b91b3aeebafb67aad911fe319c1e4ec29e5e",
+  "window_snapshot": "artifacts/runs/graph_gru/window_snapshot.json",
+  "window_snapshot_sha256": "524cc7afd4e5aff806981b6924be006d8c9f50453e72c09eed94f8595f55d828",
+  "graph_normalizer": "artifacts/runs/graph_gru/graph_normalizer.npz",
+  "graph_normalizer_sha256": "36ac055016ea4cea31c67be138da5cf788eabd646907c5efbf11e96be487e837",
+  "manifest": "data/curated/split_manifest.csv",
+  "manifest_file_sha256": "685b4ee306a37b73ce01a3c4671eeed11850c6c0ef2c6c11131c79646d7f09c0",
+  "split_summary": "data/curated/split_manifest.json",
+  "split_summary_sha256": "77691c7955075063a141ca087fdcc33c59c54ac56e7cb93fb0ecf02fa998f45b",
+  "split_hash": "f334b0e31f5faf520f85a2d4c79631caf7edef2102460a8bcd629fc2a699a82f",
+  "metadata": "data/raw/train.csv",
+  "metadata_sha256": "e13cc8c7a040c6db5adfb850ee0c2e605365f7e1b7e34ee231c52717886a7886",
+  "split_counts": {
+    "train": {
+      "windows": 67114,
+      "patients": 1245
+    },
+    "val": {
+      "windows": 16835,
+      "patients": 311
+    },
+    "test": {
+      "windows": 22638,
+      "patients": 389
+    }
+  },
+  "input_modalities": {
+    "raw_eeg": false,
+    "spectrogram": false,
+    "graph": true
+  },
+  "input_channels": [
+    "Fp1",
+    "F3",
+    "C3",
+    "P3",
+    "F7",
+    "T3",
+    "T5",
+    "O1",
+    "Fz",
+    "Cz",
+    "Pz",
+    "Fp2",
+    "F4",
+    "C4",
+    "P4",
+    "F8",
+    "T4",
+    "T6",
+    "O2"
+  ],
+  "sample_rate_hz": 200,
+  "window_seconds": 50,
+  "label_region_seconds": [
+    20,
+    30
+  ],
+  "classes": [
+    "seizure",
+    "lpd",
+    "gpd",
+    "lrda",
+    "grda",
+    "other"
+  ],
+  "model_kwargs": {
+    "node_features": 5,
+    "num_classes": 6,
+    "hidden_dim": 76,
+    "forecast_horizons": [
+      1,
+      3,
+      5
+    ],
+    "dropout": 0.1
+  },
+  "training": {
+    "epochs": 30,
+    "batch_size": 8,
+    "lr": 0.001,
+    "weight_decay": 0.01,
+    "classification_weight": 1.0,
+    "forecast_weight": 0.0,
+    "patience": 8,
+    "grad_clip": 1.0
+  },
+  "pretraining": {
+    "path": "artifacts/runs/graph_gru_pretrain/best.pt",
+    "sha256": "3d2b017fbb92b675c5d76a4c41e7cf7dfd08a26c948fdffccf7e492146542ac4",
+    "model": "graph_gru"
+  },
+  "best_epoch_zero_indexed": 7,
+  "best_validation_kl_during_training": 0.9735265573970188,
+  "evaluation": {
+    "val": {
+      "path": "results/graph_gru/val_metrics.json",
+      "sha256": "303f7072be61570edbd3d8d5992985b455a02821895efc1075e04e3517520aa9",
+      "predictions": "results/graph_gru/val_predictions.csv",
+      "predictions_sha256": "666f5bb2964b43ba36ca4752cced8ee94b2f5dcec7eefcacb92fc47c721e36ee",
+      "n_windows": 16835,
+      "n_patients": 311,
+      "kl_window_mean": 0.9735265359807873,
+      "kl_patient_equal_mean": 1.0692849321671285,
+      "macro_f1": 0.457532885459156,
+      "patient_bootstrap_ci95": [
+        0.9840936841538769,
+        1.1546481610545607
+      ]
+    },
+    "test": {
+      "path": "results/graph_gru/test_metrics.json",
+      "sha256": "c3533aa5062e735556bbba9bf951f40fa34d1d1429f0058cc5384a769ce5cb96",
+      "predictions": "results/graph_gru/test_predictions.csv",
+      "predictions_sha256": "1ee169887941c4438e280efeae9f8e6c5aa3ca934ca9d48901a35a2820e719ba",
+      "n_windows": 22638,
+      "n_patients": 389,
+      "kl_window_mean": 1.0180910891042576,
+      "kl_patient_equal_mean": 1.1110149300561383,
+      "macro_f1": 0.5311660770386453,
+      "patient_bootstrap_ci95": [
+        1.0208120416835271,
+        1.199791148127749
+      ]
+    }
+  }
+}

@@ -1,0 +1,131 @@
+{
+  "schema_version": "hms_model_card_v1",
+  "model": "spectrogram_cnn",
+  "status": "formal",
+  "task": "offline_six_class_eeg_classification",
+  "run_dir": "artifacts/runs/spectrogram_cnn",
+  "config": "artifacts/runs/spectrogram_cnn/config.json",
+  "config_sha256": "fd4745997548c25c035a3948bb278d5e22bd3f14970edbe427567c57e10cbf02",
+  "source_config": "configs/models/spectrogram_cnn.yaml",
+  "source_config_sha256": "54e89b8166f6491dd4b5dc0f092dbb533e092b927a30cf2c929faa3dad6f650d",
+  "checkpoint": "artifacts/runs/spectrogram_cnn/best.pt",
+  "weights_sha256": "3a500f410fbc5152c71bbc489eaccbd6f9816404411ba87359d99f19ac392597",
+  "completion": "artifacts/runs/spectrogram_cnn/completed.json",
+  "completion_sha256": "ae7a068ceb9a47bfa9649aab0a46e5c90d15452e49190f0a7abb79b51baf09a3",
+  "window_snapshot": "artifacts/runs/spectrogram_cnn/window_snapshot.json",
+  "window_snapshot_sha256": "524cc7afd4e5aff806981b6924be006d8c9f50453e72c09eed94f8595f55d828",
+  "graph_normalizer": "artifacts/runs/spectrogram_cnn/graph_normalizer.npz",
+  "graph_normalizer_sha256": "c2f04c4f7e0e8536881229f8c751dc3a422003205aeabf35d53efe0e5e0dc5a3",
+  "manifest": "data/curated/split_manifest.csv",
+  "manifest_file_sha256": "685b4ee306a37b73ce01a3c4671eeed11850c6c0ef2c6c11131c79646d7f09c0",
+  "split_summary": "data/curated/split_manifest.json",
+  "split_summary_sha256": "77691c7955075063a141ca087fdcc33c59c54ac56e7cb93fb0ecf02fa998f45b",
+  "split_hash": "f334b0e31f5faf520f85a2d4c79631caf7edef2102460a8bcd629fc2a699a82f",
+  "metadata": "data/raw/train.csv",
+  "metadata_sha256": "e13cc8c7a040c6db5adfb850ee0c2e605365f7e1b7e34ee231c52717886a7886",
+  "split_counts": {
+    "train": {
+      "windows": 67114,
+      "patients": 1245
+    },
+    "val": {
+      "windows": 16835,
+      "patients": 311
+    },
+    "test": {
+      "windows": 22638,
+      "patients": 389
+    }
+  },
+  "input_modalities": {
+    "raw_eeg": false,
+    "spectrogram": true,
+    "graph": false
+  },
+  "input_channels": [
+    "Fp1",
+    "F3",
+    "C3",
+    "P3",
+    "F7",
+    "T3",
+    "T5",
+    "O1",
+    "Fz",
+    "Cz",
+    "Pz",
+    "Fp2",
+    "F4",
+    "C4",
+    "P4",
+    "F8",
+    "T4",
+    "T6",
+    "O2"
+  ],
+  "sample_rate_hz": 200,
+  "window_seconds": 50,
+  "label_region_seconds": [
+    20,
+    30
+  ],
+  "classes": [
+    "seizure",
+    "lpd",
+    "gpd",
+    "lrda",
+    "grda",
+    "other"
+  ],
+  "model_kwargs": {
+    "eeg_channels": 19,
+    "num_classes": 6,
+    "width": 32,
+    "embedding_dim": 96,
+    "dropout": 0.1
+  },
+  "training": {
+    "epochs": 30,
+    "batch_size": 16,
+    "lr": 0.001,
+    "weight_decay": 0.01,
+    "forecast_weight": 0.0,
+    "patience": 8,
+    "grad_clip": 1.0
+  },
+  "pretraining": null,
+  "best_epoch_zero_indexed": 4,
+  "best_validation_kl_during_training": 1.0475361657843663,
+  "evaluation": {
+    "val": {
+      "path": "results/spectrogram_cnn/val_metrics.json",
+      "sha256": "619a6d5224ceeb5a2c5d4268e64c4a2e4845743e7bbd90efd4a4c3e0f8d1db4d",
+      "predictions": "results/spectrogram_cnn/val_predictions.csv",
+      "predictions_sha256": "cfd5b27f381f6399ed419d317cdf086682a369955990f3a54b0ef35fa2128b8f",
+      "n_windows": 16835,
+      "n_patients": 311,
+      "kl_window_mean": 1.0475361428854217,
+      "kl_patient_equal_mean": 1.1719104369551407,
+      "macro_f1": 0.3691462221135957,
+      "patient_bootstrap_ci95": [
+        1.1093083533004044,
+        1.2361270958457111
+      ]
+    },
+    "test": {
+      "path": "results/spectrogram_cnn/test_metrics.json",
+      "sha256": "60890d09e12ed4319ce78758d1b89f7e2777e14500a24ab152d09cca7b87132b",
+      "predictions": "results/spectrogram_cnn/test_predictions.csv",
+      "predictions_sha256": "f7e81d4b3738dafc6723955e4d499a0574986e2a142bdef970921eee6b0e042b",
+      "n_windows": 22638,
+      "n_patients": 389,
+      "kl_window_mean": 1.213560407739791,
+      "kl_patient_equal_mean": 1.2237689899637694,
+      "macro_f1": 0.3410909329114709,
+      "patient_bootstrap_ci95": [
+        1.1659520050649108,
+        1.2816332340751302
+      ]
+    }
+  }
+}

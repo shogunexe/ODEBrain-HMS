@@ -140,10 +140,13 @@ def manifest_context(manifest_name, metadata_name, summary_name):
                 "Split summary count mismatch for {}".format(name))
         counts[name] = count
         ids[name] = set(zip(section.window_id.astype(str), section.patient_id.astype(str)))
+    valid_eeg_coverage = float(manifest.loc[valid, "eeg_id"].nunique() /
+                               manifest.eeg_id.nunique())
     return {"path": manifest_path, "sha256": sha256(manifest_path),
             "split_hash": split_hash, "summary_path": summary_path,
             "summary_sha256": sha256(summary_path), "metadata_path": metadata_path,
-            "metadata_sha256": sha256(metadata_path), "counts": counts, "ids": ids}
+            "metadata_sha256": sha256(metadata_path), "counts": counts, "ids": ids,
+            "valid_eeg_coverage": valid_eeg_coverage}
 
 
 def check_prediction_file(path, expected_ids):
@@ -164,7 +167,10 @@ def check_metric(path, model_name, run_dir, split, context):
     require(data.get("evaluation_scope") == "full_split", "Metrics are not full split")
     require(data.get("model") == model_name, "Metric model identity mismatch")
     same_sha(context["split_hash"], data.get("split_hash"), "Metric split")
-    require(data.get("metadata_eeg_coverage") == 1.0, "Partial EEG coverage")
+    require(isinstance(data.get("metadata_eeg_coverage"), (int, float)) and
+            math.isclose(data["metadata_eeg_coverage"],
+                         context["valid_eeg_coverage"], rel_tol=0, abs_tol=1e-12),
+            "Metric valid-recording coverage differs from audited manifest")
     require(data.get("n_windows") == context["counts"][split][0]
             and data.get("n_patients") == context["counts"][split][1],
             "{} {} count mismatch".format(model_name, split))

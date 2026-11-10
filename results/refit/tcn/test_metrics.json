@@ -1,0 +1,124 @@
+{
+  "n_windows": 22638,
+  "n_patients": 389,
+  "kl_window_mean": 1.1999994283646211,
+  "kl_patient_equal_mean": 1.1830970571780373,
+  "macro_f1": 0.46378946295388657,
+  "confusion_matrix": [
+    [
+      3109,
+      252,
+      59,
+      181,
+      176,
+      386
+    ],
+    [
+      1008,
+      937,
+      247,
+      164,
+      167,
+      407
+    ],
+    [
+      899,
+      270,
+      1708,
+      8,
+      257,
+      288
+    ],
+    [
+      518,
+      168,
+      36,
+      1711,
+      994,
+      331
+    ],
+    [
+      615,
+      110,
+      85,
+      677,
+      1950,
+      937
+    ],
+    [
+      1262,
+      314,
+      103,
+      467,
+      634,
+      1203
+    ]
+  ],
+  "per_class": {
+    "seizure": {
+      "precision": 0.41951153690460125,
+      "recall": 0.746817199135239,
+      "f1": 0.5372386383272854,
+      "support": 4163,
+      "ovr_auroc": 0.8250592808545674
+    },
+    "lpd": {
+      "precision": 0.4568503169185763,
+      "recall": 0.3197952218430034,
+      "f1": 0.3762296727564746,
+      "support": 2930,
+      "ovr_auroc": 0.7837540549358518
+    },
+    "gpd": {
+      "precision": 0.7631814119749777,
+      "recall": 0.49795918367346936,
+      "f1": 0.6026817219477769,
+      "support": 3430,
+      "ovr_auroc": 0.9130815877252311
+    },
+    "lrda": {
+      "precision": 0.5333541147132169,
+      "recall": 0.45529536987759445,
+      "f1": 0.49124318116566174,
+      "support": 3758,
+      "ovr_auroc": 0.7987096031291436
+    },
+    "grda": {
+      "precision": 0.46673049305887987,
+      "recall": 0.4458161865569273,
+      "f1": 0.45603367633302155,
+      "support": 4374,
+      "ovr_auroc": 0.8171051199287951
+    },
+    "other": {
+      "precision": 0.33868243243243246,
+      "recall": 0.3020336429826764,
+      "f1": 0.31930988719309883,
+      "support": 3983,
+      "ovr_auroc": 0.6809228015635735
+    }
+  },
+  "kl_patient_bootstrap": {
+    "patient_equal_mean": 1.1830970571780373,
+    "ci95": [
+      1.0942891010669233,
+      1.272794835181973
+    ],
+    "resampling_unit": "patient",
+    "n_boot": 1000,
+    "seed": 42
+  },
+  "experiment_status": "formal",
+  "smoke_subset": false,
+  "synthetic": false,
+  "split": "test",
+  "training_protocol": "train_val_fixed_epoch_refit",
+  "split_hash": "f334b0e31f5faf520f85a2d4c79631caf7edef2102460a8bcd629fc2a699a82f",
+  "manifest_sha256": "685b4ee306a37b73ce01a3c4671eeed11850c6c0ef2c6c11131c79646d7f09c0",
+  "model": "tcn",
+  "run_dir": "/export/home/limianchong/CSproject/artifacts/refit/tcn",
+  "checkpoint_sha256": "d0bc1275e4516d4eb9d1d1e7403af69c4e42619ac8a6214d991a0b92fd6a9891",
+  "source_validation_run": "/export/home/limianchong/CSproject/artifacts/runs/tcn",
+  "fixed_refit_epochs": 21,
+  "test_used_for_selection": false
+}

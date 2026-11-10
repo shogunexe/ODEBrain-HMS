@@ -28,6 +28,16 @@ def test_paired_bootstrap_resamples_patients_not_windows():
     assert result["n_patients"] == 2
 
 
+def test_paired_bootstrap_applies_subset_mask_once():
+    a = np.array([0.0, 10.0, 2.0, 99.0])
+    b = np.zeros(4)
+    patients = np.array(["p1", "p1", "p2", "p3"])
+    result = paired_patient_bootstrap(a, b, patients,
+                                      np.array([True, False, True, False]), 1000, 42)
+    assert result["difference_patient_equal_mean"] == 1.0
+    assert result["n_patients"] == 2
+
+
 def test_predictions_reject_changed_patient_or_targets(tmp_path):
     expected = pd.DataFrame({"window_id": ["a", "b"], "patient_id": ["p1", "p2"],
                              "class_id": [0, 1],

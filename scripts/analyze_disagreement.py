@@ -119,7 +119,7 @@ def group_metrics(target, predicted, hard, patients, mask, n_boot=2000, seed=42)
 
 def paired_patient_bootstrap(values_a, values_b, patients, mask, n_boot=2000, seed=42):
     """Paired A-B difference, each patient equally weighted in each resample."""
-    difference = np.asarray(values_a, dtype=float)[mask] - np.asarray(values_b, dtype=float)[mask]
+    difference = np.asarray(values_a, dtype=float) - np.asarray(values_b, dtype=float)
     bootstrap = patient_bootstrap_mean(difference, patients, mask, n_boot, seed)
     bootstrap["difference_patient_equal_mean"] = bootstrap.pop("patient_equal_mean")
     return bootstrap
