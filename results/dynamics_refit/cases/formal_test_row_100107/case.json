@@ -1,0 +1,159 @@
+{
+  "schema_version": "ode_case_v1",
+  "provenance": "real_hms_checkpoint",
+  "model_id": "odebrain_hms_sha256_30ec390ffb6c89ca",
+  "checkpoint_sha256": "30ec390ffb6c89caab571d6b38e3d82cf7076ad17c40f2f450ce810c012cbbf4",
+  "training_lineage": {
+    "classification_checkpoint": "30ec390ffb6c89caab571d6b38e3d82cf7076ad17c40f2f450ce810c012cbbf4",
+    "forecast_head_source": "/export/home/limianchong/CSproject/artifacts/refit/ode_pretrain/final.pt",
+    "forecast_head_source_sha256": "36387c2ed9b7cf5e02d4fefc8594ea27365989070f0af3832e48b6f3331bc508",
+    "training_protocol": "train_val_fixed_epoch_refit",
+    "forecast_pretrain_refit_run": "/export/home/limianchong/CSproject/artifacts/refit/ode_pretrain"
+  },
+  "manifest_file_coverage": 1.0,
+  "manifest_rows": 106800,
+  "source_metadata_rows": 106800,
+  "graph_normalizer_sha256": "f99155a7c6abbfd82610b0b27c7be872a470c1a1454d0ae2225af0b3c16cf265",
+  "split_hash": "f334b0e31f5faf520f85a2d4c79631caf7edef2102460a8bcd629fc2a699a82f",
+  "split": "test",
+  "window_id": "row_100107",
+  "patient_id": "45528",
+  "eeg_id": "1046635662",
+  "selection_tags": [
+    "low_disagreement",
+    "typical_correct"
+  ],
+  "selection_rule": "validation-prespecified entropy extrema and correct/error, applied to each split",
+  "forecast_cut_s": 5,
+  "sample_rate_hz": 200,
+  "electrodes": [
+    "Fp1",
+    "F3",
+    "C3",
+    "P3",
+    "F7",
+    "T3",
+    "T5",
+    "O1",
+    "Fz",
+    "Cz",
+    "Pz",
+    "Fp2",
+    "F4",
+    "C4",
+    "P4",
+    "F8",
+    "T4",
+    "T6",
+    "O2"
+  ],
+  "class_names": [
+    "seizure",
+    "lpd",
+    "gpd",
+    "lrda",
+    "grda",
+    "other"
+  ],
+  "label_region_window_s": [
+    20,
+    30
+  ],
+  "label_note": "Expert votes cover 20-30 s only; forecast input ends at 5 s",
+  "probability_context": "one offline classification prediction from the full 0-50 s window; not per-second supervision",
+  "forecast_context": "separate strict forecast branch sees 0-5 s only",
+  "predicted_class": 5,
+  "true_class": 5,
+  "prediction_entropy": 1.5460317069092435,
+  "expert_entropy": -0.0,
+  "forecast_errors": [
+    {
+      "horizon_s": 1.0,
+      "valid_nodes": 19,
+      "mse": 3.1282882690429688,
+      "mae": 1.3566186428070068
+    },
+    {
+      "horizon_s": 3.0,
+      "valid_nodes": 19,
+      "mse": 1.5869874954223633,
+      "mae": 1.09717857837677
+    },
+    {
+      "horizon_s": 5.0,
+      "valid_nodes": 19,
+      "mse": 1.640425205230713,
+      "mae": 1.0859843492507935
+    }
+  ],
+  "path_length_integral": 1084.8634613592317,
+  "sampled_chord_length": 88.96394739346246,
+  "mean_turn_angle_rad": 1.7126578031659594,
+  "near_zero_turn_pairs": 0,
+  "nfe_including_export_field_evals": 84,
+  "pca_train_window_count": 256,
+  "pca_explanation": "PCA fitted only on train trajectories of this model; projected arrows are W f(z,t), at observed states",
+  "time_unit": "physical seconds",
+  "graph_head": "future node attributes only; no predicted adjacency",
+  "perturbation_config": {
+    "noise_rms_fraction": 0.02,
+    "feature_scale_fraction": 0.01,
+    "dropped_electrode": "Fp1",
+    "seed": 42
+  },
+  "perturbations": {
+    "low_noise": {
+      "probability_l1": 0.02071279287338257,
+      "trajectory_l2_mean": 10.184377670288086,
+      "forecast_mse_by_horizon": [
+        3.115633249282837,
+        1.6737961769104004,
+        1.9092439413070679
+      ]
+    },
+    "single_lead_missing": {
+      "probability_l1": 0.1654520183801651,
+      "trajectory_l2_mean": 17.61397361755371,
+      "forecast_mse_by_horizon": [
+        3.4209415912628174,
+        1.9794237613677979,
+        1.7231584787368774
+      ]
+    },
+    "small_graph_feature_scale": {
+      "probability_l1": 0.018402300775051117,
+      "trajectory_l2_mean": 10.099515914916992,
+      "forecast_mse_by_horizon": [
+        3.222607135772705,
+        1.6524113416671753,
+        1.8040860891342163
+      ]
+    }
+  },
+  "figures": {
+    "synchronized": {
+      "png": "synchronized.png",
+      "svg": "synchronized.svg"
+    },
+    "trajectory_direction": {
+      "png": "trajectory_direction.png",
+      "svg": "trajectory_direction.svg"
+    },
+    "dynamics_quantities": {
+      "png": "dynamics_quantities.png",
+      "svg": "dynamics_quantities.svg"
+    },
+    "future_graph_nodes": {
+      "png": "future_graph_nodes.png",
+      "svg": "future_graph_nodes.svg"
+    },
+    "observed_correlation": {
+      "png": "observed_correlation.png",
+      "svg": "observed_correlation.svg"
+    },
+    "perturbation": {
+      "png": "perturbation.png",
+      "svg": "perturbation.svg"
+    }
+  }
+}

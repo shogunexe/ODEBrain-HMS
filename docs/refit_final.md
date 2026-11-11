@@ -79,7 +79,7 @@ env LD_LIBRARY_PATH=/export/usr/python/3.8.9/lib:${LD_LIBRARY_PATH:-} \
   .venv/bin/python scripts/export_dynamics.py \
   --checkpoint artifacts/refit/odebrain_inspired_hms/final.pt \
   --manifest data/curated/split_manifest.csv \
-  --output results/refit/dynamics --device cuda
+  --output results/dynamics_refit --device cuda
 ```
 
 导出器会复核分类 refit 的完成记录、固定训练轮数和最终 checkpoint，沿 `refit.init_refit_run` 复核对应的开发集预测预训练 refit，并检查来源 checkpoint 的 SHA-256、同一患者划分、正的预测损失权重及预测头权重一致。来源标准化也由 refit 完成记录核对。任何来源缺失或权重变化都会拒绝导出。图中的 PCA 投影仍只用原 `train` 窗口拟合，案例来自预测任务合格的 `val/test` 窗口；导出的 `training_lineage` 标记 `train_val_fixed_epoch_refit`，并记录两个 checkpoint 的哈希。

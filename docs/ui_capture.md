@@ -11,17 +11,17 @@ LD_LIBRARY_PATH=/export/usr/python/3.8.9/lib:${LD_LIBRARY_PATH:-} \
 
 中文字体也是必要条件；没有中文字体会显示方框，工具会拒绝截图。当前服务器已在用户字体目录安装 `Noto Sans CJK SC`。新机器可从 Noto 官方字体仓库获取 `NotoSansCJKsc-Regular.otf`，放入 `~/.local/share/fonts/` 后运行 `fc-cache -f ~/.local/share/fonts`，并用 `fc-list :lang=zh family` 核对。
 
-已有本机 Streamlit 服务（当前 tmux `hms_app`，端口 8501）：
+在当前节点启动临时 Streamlit 服务并截图（无需依赖另一个节点的 tmux）：
 
 ```bash
 LD_LIBRARY_PATH=/export/usr/python/3.8.9/lib:${LD_LIBRARY_PATH:-} \
   .venv/bin/python scripts/capture_ui.py \
-  --page 'ODE 动力学'
+  --page 'ODE 动力学' --launch-app
 ```
 
 若端口没有服务，可加 `--launch-app`；工具自行启动应用并设置 `--server.fileWatcherType none`，结束后关闭该子进程。默认截图为 1600×1000，默认捕获所选页所需的最少已绘制图表：数据概览 3、样本分析 3、模型对比 2、ODE 动力学 3、大数据性能 1。`--min-charts` 只能提高门槛，不能降低。`--timeout` 默认 75 秒。需要其他页面或服务地址时使用 `--page` 和 `--url`。
 
-当前 manifest 与原始 EEG 已更新，但现有 ODE 案例和模型结果仍来自较早的真实小子集，且正式交付输入尚不完整。截图默认写入 `artifacts/smoke/ui_capture.png` 和同目录的 `ui_capture.json`；JSON 中 `experiment_status="smoke"`、实际 manifest split hash、PNG SHA256、Chrome 版本、中文字体验证、绘制图数量和未通过正式门禁的原因都可复查。工具会在 smoke PNG 右上角加 `REAL HMS SMOKE · 非正式证据`，`artifacts/smoke/ui_ode_capture.png` 的轨迹图还带应用自身水印。**这些图不能用于正式 PPT 证据页。**
+最终 ODE 重训案例已生成于 `results/dynamics_refit/`，但正式截图门禁还需要完整消融结果；在其完成前，截图默认写入 `artifacts/smoke/ui_capture.png` 和同目录的 `ui_capture.json`。JSON 中 `experiment_status="smoke"`、实际 manifest split hash、PNG SHA256、Chrome 版本、中文字体验证、绘制图数量和未通过正式门禁的原因都可复查。工具会给非正式 PNG 加水印。**这些图不能用于正式 PPT 证据页。**
 
 正式状态须由 `results/formal_delivery_inputs.json` 指向的完整正式产物通过 `scripts/prepare_formal_slides.py` 的数据审计、患者划分、Spark、五模型 train+val 固定轮数 refit 主表、对照、最终 ODE `final.pt` 动力学等门禁；工具跳过其中需要截图本身的 UI 门禁，以避免循环依赖。refit 主表须重新核对逐窗口测试预测、完整测试覆盖和 checkpoint 哈希，动力学索引须绑定 refit ODE checkpoint。同时实际 `split_manifest.csv`、其摘要哈希和动力学索引 split hash 必须一致。正式通过后，默认写 `results/formal_ui.png` 与 `results/formal_ui_capture.json`，后者的 `image` 和 `split_hash` 可供正式幻灯片准备器读取。若缺少任一正式结果或发现 smoke/synthetic，状态只能是 smoke；程序拒绝把 smoke 输出写成 `formal_*` 文件名。
 

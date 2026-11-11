@@ -1,0 +1,165 @@
+{
+  "schema_version": "hms_model_card_refit_v1",
+  "model": "odebrain_inspired_hms",
+  "status": "formal",
+  "task": "offline_six_class_eeg_classification",
+  "training_protocol": "train_val_fixed_epoch_refit",
+  "run_dir": "artifacts/refit/odebrain_inspired_hms",
+  "checkpoint": "artifacts/refit/odebrain_inspired_hms/final.pt",
+  "weights_sha256": "30ec390ffb6c89caab571d6b38e3d82cf7076ad17c40f2f450ce810c012cbbf4",
+  "config": "artifacts/refit/odebrain_inspired_hms/config.json",
+  "config_sha256": "5b1210db11e4738869d0638562645359c458cb113f035cd5a61c4c34de692b29",
+  "completion": "artifacts/refit/odebrain_inspired_hms/completed.json",
+  "completion_sha256": "02f72a8d893bc4408cd2287c5711f2f698e92285c3439c11e570c42d825bda95",
+  "window_snapshot": "artifacts/refit/odebrain_inspired_hms/window_snapshot.json",
+  "window_snapshot_sha256": "e24afad16a45b06a57a34db747d7f08ef2f91007289e4371c95734bb0f32d228",
+  "validation_record": "artifacts/refit/odebrain_inspired_hms/validation_record.json",
+  "validation_record_sha256": "32e52582ed42b7dcb0d4e578e9fb36303fb9444b9787bd83b682fb353b339c21",
+  "graph_normalizer": "artifacts/refit/odebrain_inspired_hms/graph_normalizer.npz",
+  "graph_normalizer_sha256": "f99155a7c6abbfd82610b0b27c7be872a470c1a1454d0ae2225af0b3c16cf265",
+  "normalizer_record": "artifacts/refit/odebrain_inspired_hms/normalizer_record.json",
+  "normalizer_record_sha256": "dbe69aa722750d7f86504c5d431caac65ae5306eb56750e08ca34b72e98f7d27",
+  "comparison": "results/refit/final_comparison.json",
+  "comparison_sha256": "4f26fa1c151b74b06813f69ee3a696a3d07ea6d25089b5ee76ff5b4accb6d64d",
+  "source_run": "artifacts/runs/ode_finetune",
+  "source_checkpoint": "artifacts/runs/ode_finetune/best.pt",
+  "source_checkpoint_sha256": "dea1947b54097d9520f01bdc6ef7fd400bea3b9278ef79d1fa8e09c6a3a8da22",
+  "selection": {
+    "source_run": "/export/home/limianchong/CSproject/artifacts/runs/ode_finetune",
+    "source_best_checkpoint": "/export/home/limianchong/CSproject/artifacts/runs/ode_finetune/best.pt",
+    "source_best_checkpoint_sha256": "dea1947b54097d9520f01bdc6ef7fd400bea3b9278ef79d1fa8e09c6a3a8da22",
+    "source_config_sha256": "0bc36c1447cc3fdb96d5ae4422a720ac06f95aa8b79f3356a903de0c8f53d04f",
+    "source_snapshot_sha256": "524cc7afd4e5aff806981b6924be006d8c9f50453e72c09eed94f8595f55d828",
+    "selection_split": "val",
+    "selection_monitor": "kl",
+    "source_best_epoch_zero_indexed": 15,
+    "fixed_refit_epochs": 16,
+    "source_best_validation_score": 1.0315277384418233,
+    "source_validation_row": {
+      "epoch": 15,
+      "train": {
+        "loss": 1.0634410927676028,
+        "kl": 1.0634410927676028,
+        "forecast_mse": null,
+        "examples": 67114,
+        "forecast_elements": 0
+      },
+      "val": {
+        "loss": 1.0315277384418233,
+        "kl": 1.0315277384418233,
+        "forecast_mse": null,
+        "examples": 16835,
+        "forecast_elements": 0
+      },
+      "monitor": "kl",
+      "best_val_score": 1.0315277384418233,
+      "learning_rate": 0.001
+    },
+    "test_used_for_selection": false
+  },
+  "fixed_refit_epochs": 16,
+  "refit_seed": 42,
+  "pretraining": {
+    "run_dir": "artifacts/refit/ode_pretrain",
+    "checkpoint": "artifacts/refit/ode_pretrain/final.pt",
+    "sha256": "36387c2ed9b7cf5e02d4fefc8594ea27365989070f0af3832e48b6f3331bc508",
+    "task": "forecast",
+    "training_split": "train+val"
+  },
+  "manifest": "data/curated/split_manifest.csv",
+  "manifest_file_sha256": "685b4ee306a37b73ce01a3c4671eeed11850c6c0ef2c6c11131c79646d7f09c0",
+  "split_summary": "data/curated/split_manifest.json",
+  "split_summary_sha256": "77691c7955075063a141ca087fdcc33c59c54ac56e7cb93fb0ecf02fa998f45b",
+  "split_hash": "f334b0e31f5faf520f85a2d4c79631caf7edef2102460a8bcd629fc2a699a82f",
+  "metadata": "data/raw/train.csv",
+  "metadata_sha256": "e13cc8c7a040c6db5adfb850ee0c2e605365f7e1b7e34ee231c52717886a7886",
+  "split_counts": {
+    "train": {
+      "windows": 67114,
+      "patients": 1245
+    },
+    "val": {
+      "windows": 16835,
+      "patients": 311
+    },
+    "test": {
+      "windows": 22638,
+      "patients": 389
+    }
+  },
+  "input_modalities": {
+    "raw_eeg": true,
+    "spectrogram": false,
+    "graph": true
+  },
+  "input_channels": [
+    "Fp1",
+    "F3",
+    "C3",
+    "P3",
+    "F7",
+    "T3",
+    "T5",
+    "O1",
+    "Fz",
+    "Cz",
+    "Pz",
+    "Fp2",
+    "F4",
+    "C4",
+    "P4",
+    "F8",
+    "T4",
+    "T6",
+    "O2"
+  ],
+  "sample_rate_hz": 200,
+  "window_seconds": 50,
+  "label_region_seconds": [
+    20,
+    30
+  ],
+  "classes": [
+    "seizure",
+    "lpd",
+    "gpd",
+    "lrda",
+    "grda",
+    "other"
+  ],
+  "model_kwargs": {
+    "node_features": 5,
+    "num_nodes": 19,
+    "hidden_dim": 64,
+    "raw_dim": 32,
+    "num_classes": 6,
+    "rk4_step_seconds": 0.25
+  },
+  "training": {
+    "epochs": 16,
+    "batch_size": 8,
+    "lr": 0.001,
+    "weight_decay": 0.01,
+    "classification_weight": 1.0,
+    "forecast_weight": 0.0,
+    "patience": 8,
+    "grad_clip": 1.0
+  },
+  "evaluation": {
+    "test": {
+      "path": "results/refit/odebrain_inspired_hms/test_metrics.json",
+      "sha256": "cec5366fd713739b3dda2af3d91e45ce58448cb8bf36f3191b6a59c90b508cac",
+      "predictions": "results/refit/odebrain_inspired_hms/test_predictions.csv",
+      "predictions_sha256": "dee90ea2ac8a3a5a9b96c6798a4f5429c31ce7f535d8e5d300667733c5b1c690",
+      "n_windows": 22638,
+      "n_patients": 389,
+      "kl_window_mean": 1.6276035396355377,
+      "kl_patient_equal_mean": 1.4138755655921116,
+      "macro_f1": 0.21009995100001536,
+      "patient_bootstrap_ci95": [
+        1.3193260075168889,
+        1.5132632377075743
+      ]
+    }
+  }
+}

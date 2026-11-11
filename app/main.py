@@ -598,6 +598,31 @@ def page_dynamics(result_root):
     _download_figures(case_dir, meta)
 
 
+def _performance_figure(df, x, y):
+    """Keep methods and input scales separate in benchmark curves."""
+    groups = [name for name in ("method",) if name in df]
+    if x in ("workers", "partitions") and "subset" in df:
+        groups.append("subset")
+    elif x in ("windows", "input_rows", "input_gib", "dataset_gib") and "workers" in df:
+        groups.append("workers")
+    fig = go.Figure()
+    batches = df.groupby(groups, dropna=False, sort=True) if groups else [((), df)]
+    for key, batch in batches:
+        if not isinstance(key, tuple):
+            key = (key,)
+        points = pd.DataFrame({x: pd.to_numeric(batch[x], errors="coerce"),
+                               y: pd.to_numeric(batch[y], errors="coerce")}).dropna()
+        if points.empty:
+            continue
+        points = points.groupby(x, as_index=False)[y].median().sort_values(x)
+        label = " · ".join("%s=%s" % (name, value) for name, value in zip(groups, key))
+        fig.add_trace(go.Scatter(x=points[x], y=points[y],
+                                 mode="lines+markers" if len(points) > 1 else "markers",
+                                 name=label or "实际记录"))
+    return fig.update_layout(xaxis_title=x, yaxis_title=y,
+                             title="实际运行基准（相同配置重复取中位数）")
+
+
 def page_performance(result_root):
     st.header("5 · 大数据性能")
     paths = sorted(result_root.rglob("*benchmark*.json")) if result_root.exists() else []
@@ -637,8 +662,7 @@ def page_performance(result_root):
     if x_candidates and y_candidates:
         x = st.selectbox("扩展变量", x_candidates)
         y = st.selectbox("性能指标", y_candidates)
-        _plot(go.Figure(go.Scatter(x=df[x], y=df[y], mode="lines+markers")).update_layout(
-            xaxis_title=x, yaxis_title=y, title="实际运行扩展曲线"),
+        _plot(_performance_figure(df, x, y),
               "performance_%s_%s_%s" % (path.stem, x, y))
     else:
         _empty("运行文件没有可识别的规模与耗时/吞吐字段，扩展曲线未生成")

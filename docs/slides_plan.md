@@ -53,8 +53,8 @@ LD_LIBRARY_PATH=/export/usr/python/3.8.9/lib:${LD_LIBRARY_PATH:-} \
   "refit_comparison": "results/refit/final_comparison.json",
   "benchmark_runs": "results/spark_benchmark/runs.json",
   "benchmark_summary": "results/spark_benchmark/summary.json",
-  "ablation": "results/formal_ablation.json",
-  "forecast_comparison": "results/forecast_comparison.json",
+  "ablation": "results/ablation.json",
+  "forecast_comparison": "results/refit/forecast_comparison.json",
   "dynamics_index": "results/dynamics_refit/result_index.json",
   "ui_capture": "results/formal_ui_capture.json",
   "resources": "results/formal_resources.json"
@@ -78,7 +78,7 @@ scripts/export_slides_pdf.sh "$PWD/slides/ODEBrain_LOCAL_PREVIEW_pending_publica
 以下四个补充输入尚需由正式实验与实际发布取得，不能由 smoke 案例拼凑：
 
 ```text
-formal_ablation.json:
+ablation.json:
   experiment_status="formal", split="test", split_hash=<manifest hash>,
   n_windows=<完整测试窗口>, n_patients=<测试患者>,
   rows=[{"name": <真实模型运行>, "kl_window_mean": <实测值>}, ...]

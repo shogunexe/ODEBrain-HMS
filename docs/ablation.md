@@ -33,4 +33,4 @@ export LD_LIBRARY_PATH=/export/usr/python/3.8.9/lib:${LD_LIBRARY_PATH:-}
 
 ## 当前状态
 
-2026-11-07：脚本及四项聚合测试已通过项目 Python 3.8 环境；当前旧 manifest 仍记录大量 `missing_eeg_file`，实跑 `collect` 正确拒绝，提示 `Formal run requires every EEG parquet`。因此尚无正式 `results/ablation.json` 和可报告的消融指标。全量解压、重新审计及正式训练完成后按上述顺序运行。
+2026-11-11 19:42：全量解压和正式 manifest 已完成。A800 节点的图预测预训练与 `pretrained_rk4_025` 分类训练、验证均已完成；`scratch_rk4_025` 正在训练，随后自动运行 `pretrained_rk4_050`。所有消融臂完成并通过同一测试集证据门禁前，不报告消融结论。

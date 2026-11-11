@@ -1,0 +1,188 @@
+{
+  "schema_version": "hms_forecast_comparison_v2",
+  "generated_utc": "2026-11-10T05:58:22.790658+00:00",
+  "experiment_status": "formal",
+  "training_protocol": "train_val_fixed_epoch_refit",
+  "smoke_subset": false,
+  "synthetic": false,
+  "evaluation_scope": "forecast_eligible_held_out_test",
+  "split": "test",
+  "split_hash": "f334b0e31f5faf520f85a2d4c79631caf7edef2102460a8bcd629fc2a699a82f",
+  "manifest_sha256": "685b4ee306a37b73ce01a3c4671eeed11850c6c0ef2c6c11131c79646d7f09c0",
+  "window_count": 22606,
+  "patient_count": 387,
+  "n_windows": 22606,
+  "n_patients": 387,
+  "window_ids_sha256": "ecc2dbde3a38fe097c10ed43070cb85ead97fe3ae67d8f917f3fe8a0e129e675",
+  "patient_ids_sha256": "53e7073e80b83e1b28b22e5abb1c1fe8a9573c7acc630f8d30c4112c5bdfaa55",
+  "forecast_eligibility": {
+    "original_test_windows": 22638,
+    "eligible_test_windows": 22606,
+    "excluded_test_windows": 32,
+    "reason_counts": {
+      "ok": 22606,
+      "history_constant_channel": 29,
+      "history_too_many_missing_samples": 2,
+      "future_constant_channel": 1
+    },
+    "eligible_window_ids_sha256": "13c42d5f06d8e6fbf6ae4f63a583183765c252bd68eaa1b4242951a967bd62db",
+    "cache_index_sha256": "074a05ce7e81d9d4bfaf581d6c8a5b4e52a1a027a69b56424985a233df88d3be"
+  },
+  "forecast_cut_seconds": 5,
+  "horizons_seconds": [
+    1,
+    3,
+    5
+  ],
+  "target": "future electrode-node log1p band-power attributes",
+  "mae_units": "log1p_band_power",
+  "validity_rule": "future node valid AND node observed at least once before cut; each of five features counted",
+  "methods": {
+    "odebrain_inspired_hms": [
+      {
+        "horizon_seconds": 1,
+        "mae": 0.6564709715839854,
+        "patient_macro_mae": 0.6826108089727736,
+        "valid_node_feature_values": 2147570,
+        "patients_with_valid_target": 387
+      },
+      {
+        "horizon_seconds": 3,
+        "mae": 0.6832688032602438,
+        "patient_macro_mae": 0.7225706451702589,
+        "valid_node_feature_values": 2147570,
+        "patients_with_valid_target": 387
+      },
+      {
+        "horizon_seconds": 5,
+        "mae": 0.7031172694891261,
+        "patient_macro_mae": 0.7526184956577362,
+        "valid_node_feature_values": 2147570,
+        "patients_with_valid_target": 387
+      }
+    ],
+    "graph_gru": [
+      {
+        "horizon_seconds": 1,
+        "mae": 0.6414929298373452,
+        "patient_macro_mae": 0.6634639002404416,
+        "valid_node_feature_values": 2147570,
+        "patients_with_valid_target": 387
+      },
+      {
+        "horizon_seconds": 3,
+        "mae": 0.6708698387463325,
+        "patient_macro_mae": 0.7089433784119014,
+        "valid_node_feature_values": 2147570,
+        "patients_with_valid_target": 387
+      },
+      {
+        "horizon_seconds": 5,
+        "mae": 0.6884601178801709,
+        "patient_macro_mae": 0.7432314877364387,
+        "valid_node_feature_values": 2147570,
+        "patients_with_valid_target": 387
+      }
+    ],
+    "persistence": [
+      {
+        "horizon_seconds": 1,
+        "mae": 0.7829704218923194,
+        "patient_macro_mae": 0.7925204188944543,
+        "valid_node_feature_values": 2147570,
+        "patients_with_valid_target": 387
+      },
+      {
+        "horizon_seconds": 3,
+        "mae": 0.8136800134236003,
+        "patient_macro_mae": 0.8629045282350263,
+        "valid_node_feature_values": 2147570,
+        "patients_with_valid_target": 387
+      },
+      {
+        "horizon_seconds": 5,
+        "mae": 0.8437765355997285,
+        "patient_macro_mae": 0.9043842689049028,
+        "valid_node_feature_values": 2147570,
+        "patients_with_valid_target": 387
+      }
+    ]
+  },
+  "rows": [
+    {
+      "name": "odebrain_inspired_hms",
+      "mae_by_horizon_s": {
+        "1": 0.6564709715839854,
+        "3": 0.6832688032602438,
+        "5": 0.7031172694891261
+      }
+    },
+    {
+      "name": "graph_gru",
+      "mae_by_horizon_s": {
+        "1": 0.6414929298373452,
+        "3": 0.6708698387463325,
+        "5": 0.6884601178801709
+      }
+    },
+    {
+      "name": "persistence",
+      "mae_by_horizon_s": {
+        "1": 0.7829704218923194,
+        "3": 0.8136800134236003,
+        "5": 0.8437765355997285
+      }
+    }
+  ],
+  "provenance": {
+    "manifest": "/export/home/limianchong/CSproject/data/curated/split_manifest.csv",
+    "graph_cache_dir": "/export/home/limianchong/CSproject/data/training/graph_forecast_v2",
+    "ode": {
+      "run_dir": "/export/home/limianchong/CSproject/artifacts/refit/ode_pretrain",
+      "model_name": "odebrain_inspired_hms",
+      "checkpoint": "/export/home/limianchong/CSproject/artifacts/refit/ode_pretrain/final.pt",
+      "checkpoint_sha256": "36387c2ed9b7cf5e02d4fefc8594ea27365989070f0af3832e48b6f3331bc508",
+      "checkpoint_epoch": 16,
+      "config_sha256": "e59a86cd5c2d87249668777cdb41dc1043d85bed92cb6b72f949cdcd6b6f3226",
+      "graph_normalizer_sha256": "f99155a7c6abbfd82610b0b27c7be872a470c1a1454d0ae2225af0b3c16cf265",
+      "training_manifest_sha256": "685b4ee306a37b73ce01a3c4671eeed11850c6c0ef2c6c11131c79646d7f09c0",
+      "initial_pretrain_checkpoint_sha256": null,
+      "training_task": "forecast",
+      "smoke_subset": false,
+      "training_protocol": "train_val_fixed_epoch_refit",
+      "training_window_count": 83828,
+      "training_window_ids_sha256": "1197447a8767c1f85eb77c7803146d24fdb1d53ccd59e46daa3237fafe4e11e8",
+      "fixed_epochs": 17,
+      "source_best_epoch_zero_indexed": 16,
+      "source_best_checkpoint": "/export/home/limianchong/CSproject/artifacts/runs/ode_pretrain/best.pt",
+      "source_best_checkpoint_sha256": "925e13335bb277c0229cd3e098f9a5691c019078e6a961c2b4bdc4d0883149d0",
+      "completion_sha256": "471553bd20727b8b1f3a2bdd3ca1c263753c7e37d400606e83f8a075bb622f53",
+      "validation_record_sha256": "d80e0839090170b97cbc4a6569e7388ff544b8efdd59d61856610324a6794692",
+      "window_snapshot_sha256": "bf613ae97ef24478193a9f997654738f9aa380065a2ba09793e8d0acfd47913e"
+    },
+    "graph_gru": {
+      "run_dir": "/export/home/limianchong/CSproject/artifacts/refit/graph_gru_pretrain",
+      "model_name": "graph_gru",
+      "checkpoint": "/export/home/limianchong/CSproject/artifacts/refit/graph_gru_pretrain/final.pt",
+      "checkpoint_sha256": "bd2030b7cc063ac24c1e88377e5b1363c9b6801113195c37de80f9ccfcf64ef5",
+      "checkpoint_epoch": 10,
+      "config_sha256": "02c4757edbb0c6ce74796023f3cc3d35553901c8a912116be602b0ee04a36a31",
+      "graph_normalizer_sha256": "f99155a7c6abbfd82610b0b27c7be872a470c1a1454d0ae2225af0b3c16cf265",
+      "training_manifest_sha256": "685b4ee306a37b73ce01a3c4671eeed11850c6c0ef2c6c11131c79646d7f09c0",
+      "initial_pretrain_checkpoint_sha256": null,
+      "training_task": "forecast",
+      "smoke_subset": false,
+      "training_protocol": "train_val_fixed_epoch_refit",
+      "training_window_count": 83828,
+      "training_window_ids_sha256": "1197447a8767c1f85eb77c7803146d24fdb1d53ccd59e46daa3237fafe4e11e8",
+      "fixed_epochs": 11,
+      "source_best_epoch_zero_indexed": 10,
+      "source_best_checkpoint": "/export/home/limianchong/CSproject/artifacts/runs/graph_gru_pretrain/best.pt",
+      "source_best_checkpoint_sha256": "3d2b017fbb92b675c5d76a4c41e7cf7dfd08a26c948fdffccf7e492146542ac4",
+      "completion_sha256": "7565ded1fb3f6a585955e45eccaa5b69655ac34e76f2b82dcd374e36bf21434c",
+      "validation_record_sha256": "f7485fb88b625e51aa209f60b2879b3a1f2272f33d40b93957b7bf0ed4cd17a9",
+      "window_snapshot_sha256": "bf613ae97ef24478193a9f997654738f9aa380065a2ba09793e8d0acfd47913e"
+    },
+    "persistence": "last valid observed node attribute repeated at each horizon"
+  }
+}

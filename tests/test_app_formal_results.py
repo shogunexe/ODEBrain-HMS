@@ -76,3 +76,20 @@ def test_ablation_json_respects_split_and_provenance(tmp_path, monkeypatch):
     result["smoke_subset"] = True
     path.write_text(json.dumps(result))
     assert dashboard._ablation_rows(path, split_hash, "test", 1, 1).iloc[0]["证据状态"] == "real_hms_smoke"
+
+
+def test_performance_curve_keeps_methods_and_subsets_separate():
+    rows = pd.DataFrame([
+        {"method": "spark", "subset": "10%", "workers": 1, "end_to_end_seconds": 30},
+        {"method": "spark", "subset": "10%", "workers": 4, "end_to_end_seconds": 12},
+        {"method": "spark", "subset": "100%", "workers": 1, "end_to_end_seconds": 300},
+        {"method": "spark", "subset": "100%", "workers": 4, "end_to_end_seconds": 120},
+        {"method": "serial", "subset": "10%", "workers": 1, "end_to_end_seconds": 35},
+    ])
+    figure = dashboard._performance_figure(rows, "workers", "end_to_end_seconds")
+    traces = {trace.name: trace for trace in figure.data}
+    assert len(traces) == 3
+    assert list(traces["method=spark · subset=10%"].x) == [1, 4]
+    assert list(traces["method=spark · subset=10%"].y) == [30, 12]
+    assert list(traces["method=spark · subset=100%"].y) == [300, 120]
+    assert traces["method=serial · subset=10%"].mode == "markers"

@@ -1,0 +1,300 @@
+{
+  "schema_version": "hms_fixed_split_seed_stability_v1",
+  "experiment_status": "formal",
+  "smoke_subset": false,
+  "synthetic": false,
+  "variability_source": "initialization_seed_on_one_fixed_patient_split",
+  "training_protocol": "train_val_fixed_epoch_refit",
+  "test_used_for_selection": false,
+  "seeds": [
+    42,
+    44,
+    45
+  ],
+  "n_seeds": 3,
+  "split_hash": "f334b0e31f5faf520f85a2d4c79631caf7edef2102460a8bcd629fc2a699a82f",
+  "manifest_sha256": "685b4ee306a37b73ce01a3c4671eeed11850c6c0ef2c6c11131c79646d7f09c0",
+  "n_windows": 22638,
+  "n_patients": 389,
+  "comparisons": {
+    "42": {
+      "path": "/export/home/limianchong/CSproject/results/refit/final_comparison.json",
+      "sha256": "4f26fa1c151b74b06813f69ee3a696a3d07ea6d25089b5ee76ff5b4accb6d64d"
+    },
+    "44": {
+      "path": "/export/home/limianchong/CSproject/results/seed_stability/seed44/final_comparison.json",
+      "sha256": "7f49b8b66b38718211894198680b3effea368811cc57b1ca605bdc7a67830523"
+    },
+    "45": {
+      "path": "/export/home/limianchong/CSproject/results/seed_stability/seed45/final_comparison.json",
+      "sha256": "4aa7fba75cac715f843123451493d7d75046eca07d9c71317deb868962ba8dd2"
+    }
+  },
+  "rows": [
+    {
+      "name": "tcn",
+      "per_seed": {
+        "42": {
+          "checkpoint_sha256": "d0bc1275e4516d4eb9d1d1e7403af69c4e42619ac8a6214d991a0b92fd6a9891",
+          "test_metrics_sha256": "c2254b239e09a5cb528a4d6ceb21c031fe366374be1ece69487627ec93a61022",
+          "test_predictions_sha256": "9253c56a6185095b81487b7ee37e576654d494b05dd93107e2be6a6cdf3e6098",
+          "fixed_refit_epochs": 21,
+          "run_dir": "/export/home/limianchong/CSproject/artifacts/refit/tcn"
+        },
+        "44": {
+          "checkpoint_sha256": "8e8abd5c94c98aec3dbebd51a4b7a1de76f4cc5b024db37a9e21cf22dadaac18",
+          "test_metrics_sha256": "d3600c8680477af468740bbad80c4c4377b7c4f41376474518277ea3d2cf41a9",
+          "test_predictions_sha256": "3e15967439124f50d245d4a533aaf0c92e3ddc33e128971ae21c2ba1c3592d40",
+          "fixed_refit_epochs": 21,
+          "run_dir": "/export/home/limianchong/CSproject/artifacts/seed_stability/seed44/tcn"
+        },
+        "45": {
+          "checkpoint_sha256": "508945a3f807728eb666b90be04310c673e94ed18619040535c9666732b67a5f",
+          "test_metrics_sha256": "17fb299fd3bbca5ff46121191e44899461732af23be463e2c094540ee0b316b6",
+          "test_predictions_sha256": "d5157fdb7c994a253fc6a06017118c7e8cc0e5a20cb9dcd8d89ea8954c4c89f1",
+          "fixed_refit_epochs": 21,
+          "run_dir": "/export/home/limianchong/CSproject/artifacts/seed_stability/seed45/tcn"
+        }
+      },
+      "kl_window_mean": {
+        "mean": 1.22240518454018,
+        "sample_std": 0.019629469927758148,
+        "values_by_seed": {
+          "42": 1.19999942913253,
+          "44": 1.2365749938414952,
+          "45": 1.2306411306465146
+        }
+      },
+      "kl_patient_equal_mean": {
+        "mean": 1.1668883025516266,
+        "sample_std": 0.046205970009467266,
+        "values_by_seed": {
+          "42": 1.183097058182141,
+          "44": 1.202806065134111,
+          "45": 1.1147617843386275
+        }
+      },
+      "macro_f1": {
+        "mean": 0.4620881913705373,
+        "sample_std": 0.006135590974845612,
+        "values_by_seed": {
+          "42": 0.46378946295388657,
+          "44": 0.45528148868363955,
+          "45": 0.46719362247408586
+        }
+      }
+    },
+    {
+      "name": "spectrogram_cnn",
+      "per_seed": {
+        "42": {
+          "checkpoint_sha256": "d9f089eff0d457f6e373dc6ddd3a130a5656d8f5edf5a8f19b90467b29050c57",
+          "test_metrics_sha256": "111ca8a14fb044212f9bdc98fe1cc1bd574bfe9cda652b5f0d3259c842404ab6",
+          "test_predictions_sha256": "2fa1b34d438a18c05443c1bc67919f81ff04df9339ab6a2d2b97a03948faf6f5",
+          "fixed_refit_epochs": 5,
+          "run_dir": "/export/home/limianchong/CSproject/artifacts/refit/spectrogram_cnn"
+        },
+        "44": {
+          "checkpoint_sha256": "cf6fe06f1abc359ca14d52a616cc1e40bebd2f4d766958b04f3f44e078703288",
+          "test_metrics_sha256": "0ddae3b6c9d3554e2dd4f4c714670d486f3e3b5c56ffe60761913f5b51d4eada",
+          "test_predictions_sha256": "61f019bde14e2eb51f0bfcb5b1147657ec6caa410c17b30134b10c44ae41320c",
+          "fixed_refit_epochs": 5,
+          "run_dir": "/export/home/limianchong/CSproject/artifacts/seed_stability/seed44/spectrogram_cnn"
+        },
+        "45": {
+          "checkpoint_sha256": "fa228aa19402aa0403905b8982be187c46fa576cb1ebb3005d1f8220c791fb44",
+          "test_metrics_sha256": "b82ce917995e41a53d4bff2993b992f612d48778a6fc12b807a8823f2c91e2fa",
+          "test_predictions_sha256": "562d4a8670f808541910707c86518984cf8d315768c11acc608d0aff4e91e40a",
+          "fixed_refit_epochs": 5,
+          "run_dir": "/export/home/limianchong/CSproject/artifacts/seed_stability/seed45/spectrogram_cnn"
+        }
+      },
+      "kl_window_mean": {
+        "mean": 1.3809890136568463,
+        "sample_std": 0.19165185174911764,
+        "values_by_seed": {
+          "42": 1.3228361714195693,
+          "44": 1.2251489198730552,
+          "45": 1.5949819496779147
+        }
+      },
+      "kl_patient_equal_mean": {
+        "mean": 1.3767254279277688,
+        "sample_std": 0.2194464719653608,
+        "values_by_seed": {
+          "42": 1.2925752074916186,
+          "44": 1.211808245152954,
+          "45": 1.6257928311387337
+        }
+      },
+      "macro_f1": {
+        "mean": 0.3314523594234874,
+        "sample_std": 0.053659932593771206,
+        "values_by_seed": {
+          "42": 0.29565261327992676,
+          "44": 0.3931491730049715,
+          "45": 0.30555529198556397
+        }
+      }
+    },
+    {
+      "name": "fusion",
+      "per_seed": {
+        "42": {
+          "checkpoint_sha256": "39cea589bb6b59f384b498ba76c7860e871ed4c5f452607ee6fa68a6910a17de",
+          "test_metrics_sha256": "2fb07987144a030830a1315e0f0ffd401d6ca7b703cde69e6f353f3496d926eb",
+          "test_predictions_sha256": "8bbd2593acf9a137386d24b73be481b14f730dbd332dc69a7a4b39c0e4114335",
+          "fixed_refit_epochs": 9,
+          "run_dir": "/export/home/limianchong/CSproject/artifacts/refit/fusion"
+        },
+        "44": {
+          "checkpoint_sha256": "4adf82bf365a1da2872d8df2a22aae39f89cacd05d6a3579110adb0e006b76d4",
+          "test_metrics_sha256": "fc7a4fb1b6605fad5471d61b52d5cf7571526b346202951a245afc85977a3306",
+          "test_predictions_sha256": "989493981c91cf4597f6e54c28e4f35b00a987c61c880aafaaa1cddcbef6ec33",
+          "fixed_refit_epochs": 9,
+          "run_dir": "/export/home/limianchong/CSproject/artifacts/seed_stability/seed44/fusion"
+        },
+        "45": {
+          "checkpoint_sha256": "c889baaf5e4fb8ded7d6ee73d790ac1ed54f0765e1f12bfc3675258c348c4f10",
+          "test_metrics_sha256": "71d4ddad28bd928878373c4c43d11d7636e5646eeb01832925dd122c93d8cfa2",
+          "test_predictions_sha256": "5f14c54609e9e6c69d9dd37d9adbbed8ef60d7a61ae03b06654dd0f58cb81093",
+          "fixed_refit_epochs": 9,
+          "run_dir": "/export/home/limianchong/CSproject/artifacts/seed_stability/seed45/fusion"
+        }
+      },
+      "kl_window_mean": {
+        "mean": 1.1615700454868834,
+        "sample_std": 0.13458464630296835,
+        "values_by_seed": {
+          "42": 1.0530316335688574,
+          "44": 1.3121594823126763,
+          "45": 1.1195190205791166
+        }
+      },
+      "kl_patient_equal_mean": {
+        "mean": 1.1570405367322205,
+        "sample_std": 0.10948436683003702,
+        "values_by_seed": {
+          "42": 1.1096326434383508,
+          "44": 1.2822392877794393,
+          "45": 1.0792496789788713
+        }
+      },
+      "macro_f1": {
+        "mean": 0.4287737064712893,
+        "sample_std": 0.07851266145115006,
+        "values_by_seed": {
+          "42": 0.44836910915543177,
+          "44": 0.34231928231003134,
+          "45": 0.4956327279484049
+        }
+      }
+    },
+    {
+      "name": "odebrain_inspired_hms",
+      "per_seed": {
+        "42": {
+          "checkpoint_sha256": "30ec390ffb6c89caab571d6b38e3d82cf7076ad17c40f2f450ce810c012cbbf4",
+          "test_metrics_sha256": "cec5366fd713739b3dda2af3d91e45ce58448cb8bf36f3191b6a59c90b508cac",
+          "test_predictions_sha256": "dee90ea2ac8a3a5a9b96c6798a4f5429c31ce7f535d8e5d300667733c5b1c690",
+          "fixed_refit_epochs": 16,
+          "run_dir": "/export/home/limianchong/CSproject/artifacts/refit/odebrain_inspired_hms"
+        },
+        "44": {
+          "checkpoint_sha256": "900ae8a3082984cee31c60ce39221c2d0d3785aa6e2a6e531bb2cb69d33de653",
+          "test_metrics_sha256": "a3d414720635a827bf1b3662ed6c43ec45beb56db198131d651f39f02fe95485",
+          "test_predictions_sha256": "0478dfdfe97d8037c36ab22d151a6158ed02c85fdb650824f9ff4dd160a11751",
+          "fixed_refit_epochs": 16,
+          "run_dir": "/export/home/limianchong/CSproject/artifacts/seed_stability/seed44/odebrain_inspired_hms"
+        },
+        "45": {
+          "checkpoint_sha256": "f56a5a73d7fcf4a1ba1255fb30004cad5dee920ce70619d5ff3afee851573176",
+          "test_metrics_sha256": "d3c2379c7288e0d1a4372393d7f592577e25da3a88172380a008b9ffe65a3f0d",
+          "test_predictions_sha256": "93bd5ba5e7db3a1e1c1a88047d99bc36836f81234aed61a803382ef7afc22789",
+          "fixed_refit_epochs": 16,
+          "run_dir": "/export/home/limianchong/CSproject/artifacts/seed_stability/seed45/odebrain_inspired_hms"
+        }
+      },
+      "kl_window_mean": {
+        "mean": 1.5408135026257648,
+        "sample_std": 0.10041072136276688,
+        "values_by_seed": {
+          "42": 1.6276035401404838,
+          "44": 1.5639987362390326,
+          "45": 1.4308382314977777
+        }
+      },
+      "kl_patient_equal_mean": {
+        "mean": 1.4613730230391353,
+        "sample_std": 0.04544352657343149,
+        "values_by_seed": {
+          "42": 1.413875565934484,
+          "44": 1.465805753458462,
+          "45": 1.50443774972446
+        }
+      },
+      "macro_f1": {
+        "mean": 0.2714842014082759,
+        "sample_std": 0.06246760999481093,
+        "values_by_seed": {
+          "42": 0.21009995100001536,
+          "44": 0.26937110370772566,
+          "45": 0.3349815495170867
+        }
+      }
+    },
+    {
+      "name": "graph_gru",
+      "per_seed": {
+        "42": {
+          "checkpoint_sha256": "a2b5311e2d47c633df1408352039a184e38a70349375746d38f7e5be22d4983e",
+          "test_metrics_sha256": "7eb433988efa4644e487ae9e2088bec76bf10808b54091003ba6a38ed2c92235",
+          "test_predictions_sha256": "fc5d8d8f0c4244a6f5fc17f169c17eb26b616491e23de20e96ce3799d5b98a97",
+          "fixed_refit_epochs": 8,
+          "run_dir": "/export/home/limianchong/CSproject/artifacts/refit/graph_gru"
+        },
+        "44": {
+          "checkpoint_sha256": "0bb529aeb463b7416512ac26dcd667c208ee7f701172a48edf4033500d9ed836",
+          "test_metrics_sha256": "f31d721a7ee3969790f557fea52e2dfe8603f14548db4f7f836f2bf688d532f4",
+          "test_predictions_sha256": "17076634b12ea90a18e1fca0f5d18b4e48dd846597bb768cdbb1cda2865c0197",
+          "fixed_refit_epochs": 8,
+          "run_dir": "/export/home/limianchong/CSproject/artifacts/seed_stability/seed44/graph_gru"
+        },
+        "45": {
+          "checkpoint_sha256": "b553386cac7d2e11546ee30152a0a8fc10026c21e996e87befa9f295d991b010",
+          "test_metrics_sha256": "58619c59017cc648fa4d1ba2dd916671483b8fadb8dc777c26685c02d199331f",
+          "test_predictions_sha256": "996cb9a1f6ef84f4aae68bd7950adc53e32085335b7eb8fa5219f7c30bc6c977",
+          "fixed_refit_epochs": 8,
+          "run_dir": "/export/home/limianchong/CSproject/artifacts/seed_stability/seed45/graph_gru"
+        }
+      },
+      "kl_window_mean": {
+        "mean": 1.2258212094681051,
+        "sample_std": 0.12619478347768692,
+        "values_by_seed": {
+          "42": 1.361070239198834,
+          "44": 1.1112297025268947,
+          "45": 1.2051636866785864
+        }
+      },
+      "kl_patient_equal_mean": {
+        "mean": 1.3014635500623215,
+        "sample_std": 0.12511805146596316,
+        "values_by_seed": {
+          "42": 1.4373560597048793,
+          "44": 1.1910385220722597,
+          "45": 1.2759960684098257
+        }
+      },
+      "macro_f1": {
+        "mean": 0.437826337599109,
+        "sample_std": 0.029193800591667967,
+        "values_by_seed": {
+          "42": 0.4056486640291414,
+          "44": 0.4626172422822725,
+          "45": 0.445213106485913
+        }
+      }
+    }
+  ]
+}

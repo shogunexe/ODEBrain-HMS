@@ -1,0 +1,139 @@
+{
+  "schema_version": "ode_results_v1",
+  "provenance": "real_hms_checkpoint",
+  "model_id": "odebrain_hms_sha256_30ec390ffb6c89ca",
+  "split_hash": "f334b0e31f5faf520f85a2d4c79631caf7edef2102460a8bcd629fc2a699a82f",
+  "manifest_file_coverage": 1.0,
+  "manifest_rows": 106800,
+  "source_metadata_rows": 106800,
+  "checkpoint_sha256": "30ec390ffb6c89caab571d6b38e3d82cf7076ad17c40f2f450ce810c012cbbf4",
+  "training_lineage": {
+    "classification_checkpoint": "30ec390ffb6c89caab571d6b38e3d82cf7076ad17c40f2f450ce810c012cbbf4",
+    "forecast_head_source": "/export/home/limianchong/CSproject/artifacts/refit/ode_pretrain/final.pt",
+    "forecast_head_source_sha256": "36387c2ed9b7cf5e02d4fefc8594ea27365989070f0af3832e48b6f3331bc508",
+    "training_protocol": "train_val_fixed_epoch_refit",
+    "forecast_pretrain_refit_run": "/export/home/limianchong/CSproject/artifacts/refit/ode_pretrain"
+  },
+  "forecast_eligibility": {
+    "total_windows": 106587,
+    "eligible_windows": 106434,
+    "excluded_windows": 153,
+    "reason_counts": {
+      "ok": 106434,
+      "history_constant_channel": 135,
+      "history_too_many_missing_samples": 14,
+      "future_constant_channel": 3,
+      "future_no_valid_target": 1
+    },
+    "by_split": {
+      "test": {
+        "eligible": 22606,
+        "excluded": 32,
+        "reason_counts": {
+          "ok": 22606,
+          "history_constant_channel": 29,
+          "history_too_many_missing_samples": 2,
+          "future_constant_channel": 1
+        },
+        "eligible_window_ids_sha256": "13c42d5f06d8e6fbf6ae4f63a583183765c252bd68eaa1b4242951a967bd62db"
+      },
+      "train": {
+        "eligible": 67027,
+        "excluded": 87,
+        "reason_counts": {
+          "ok": 67027,
+          "history_constant_channel": 75,
+          "history_too_many_missing_samples": 9,
+          "future_constant_channel": 2,
+          "future_no_valid_target": 1
+        },
+        "eligible_window_ids_sha256": "d246f476564f0e639db098e7cdca2e9d5ec5a618faad2e9312a604688130a68e"
+      },
+      "val": {
+        "eligible": 16801,
+        "excluded": 34,
+        "reason_counts": {
+          "ok": 16801,
+          "history_constant_channel": 31,
+          "history_too_many_missing_samples": 3
+        },
+        "eligible_window_ids_sha256": "cef412e5a03369bc666d2e149cdb204f99b0e9c141a3bfc882801e49a793d5d0"
+      }
+    },
+    "eligible_window_ids_sha256": "f8674de8e4d1f873cadc8a1db9e4fcccc652d9b6c234e6646dd0bf349b5dd838"
+  },
+  "graph_normalizer_sha256": "f99155a7c6abbfd82610b0b27c7be872a470c1a1454d0ae2225af0b3c16cf265",
+  "pca_file": "train_pca.npz",
+  "pca_train_window_count": 256,
+  "selection_rule": "For each val/test split: min/max expert entropy, min entropy correct and min entropy error; window ID tie break",
+  "cases": [
+    {
+      "id": "formal_val_row_0",
+      "split": "val",
+      "window_id": "row_0",
+      "patient_id": "42516",
+      "tags": [
+        "low_disagreement",
+        "typical_error"
+      ],
+      "metadata": "cases/formal_val_row_0/case.json",
+      "data": "cases/formal_val_row_0/case.npz"
+    },
+    {
+      "id": "formal_val_row_15793",
+      "split": "val",
+      "window_id": "row_15793",
+      "patient_id": "10111",
+      "tags": [
+        "high_disagreement"
+      ],
+      "metadata": "cases/formal_val_row_15793/case.json",
+      "data": "cases/formal_val_row_15793/case.npz"
+    },
+    {
+      "id": "formal_val_row_100087",
+      "split": "val",
+      "window_id": "row_100087",
+      "patient_id": "63946",
+      "tags": [
+        "typical_correct"
+      ],
+      "metadata": "cases/formal_val_row_100087/case.json",
+      "data": "cases/formal_val_row_100087/case.npz"
+    },
+    {
+      "id": "formal_test_row_100107",
+      "split": "test",
+      "window_id": "row_100107",
+      "patient_id": "45528",
+      "tags": [
+        "low_disagreement",
+        "typical_correct"
+      ],
+      "metadata": "cases/formal_test_row_100107/case.json",
+      "data": "cases/formal_test_row_100107/case.npz"
+    },
+    {
+      "id": "formal_test_row_94996",
+      "split": "test",
+      "window_id": "row_94996",
+      "patient_id": "39994",
+      "tags": [
+        "high_disagreement"
+      ],
+      "metadata": "cases/formal_test_row_94996/case.json",
+      "data": "cases/formal_test_row_94996/case.npz"
+    },
+    {
+      "id": "formal_test_row_100112",
+      "split": "test",
+      "window_id": "row_100112",
+      "patient_id": "45528",
+      "tags": [
+        "typical_error"
+      ],
+      "metadata": "cases/formal_test_row_100112/case.json",
+      "data": "cases/formal_test_row_100112/case.npz"
+    }
+  ]
+}
