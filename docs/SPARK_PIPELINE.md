@@ -1,4 +1,6 @@
-# Spark 特征与传统基线
+# Spark 数据处理与 MLlib 传统分类基线
+
+Spark 负责并行读取、质量检查、特征抽取及执行 MLlib 训练；特征与预测以 Parquet 文件保存。Spark 本身不是分类模型，也不是本项目的持久化存储系统。下文的 LR 和 RF 分别指 MLlib 的逻辑回归与随机森林。
 
 ## 输入、输出
 
@@ -26,10 +28,10 @@ export PYSPARK_PYTHON="$PWD/.venv/bin/python"
 
 `configs/spark.yaml` 使用 `spark_features: {manifest, output, master, partitions, event_log_dir}`。首次实验先用本机小数据运行；连接真实 Standalone master 时设置 `--master spark://...`，并保证所有 Worker 可读取相同的 `eeg_path` 及依赖。
 
-Spark LR 使用训练集拟合中位数填补及标准化；RF 使用训练集拟合中位数填补。测试集只做变换和评价。预测 Parquet 保留窗口、患者、原始 `label_id`、`class_id` 和六类概率。数据不足或缺失某一类别时，模型的六维概率输出须检查：正式六分类训练要求训练集涵盖全部六类。
+MLlib 逻辑回归使用训练集拟合中位数填补及标准化；MLlib 随机森林使用训练集拟合中位数填补。测试集只做变换和评价。预测 Parquet 保留窗口、患者、原始 `label_id`、`class_id` 和六类概率。数据不足或缺失某一类别时，模型的六维概率输出须检查：正式六分类训练要求训练集涵盖全部六类。
 
 只下载少数患者的运行请在两条作业上加 `--experiment-status real_data_smoke`，结果 JSON 会带该标记。其指标只验证代码链路，不进入正式模型表。
 
-2026-11-09 全量正式运行：`data/features/eeg_features_v1` 的 106,587 个窗口与审计清单 ID 完全一致，全部 `quality_ok=true`（train 67,114 / val 16,835 / test 22,638）。Spark LR/RF 结果在 `results/spark_baselines/metrics.json`，每个模型的三份预测 Parquet 也逐项覆盖对应 split 的全部窗口。重试日志与退出码在 `artifacts/spark_formal_retry.log`、`artifacts/spark_formal_retry.exitcode`（0）。
+2026-11-09 全量正式运行：`data/features/eeg_features_v1` 的 106,587 个窗口与审计清单 ID 完全一致，全部 `quality_ok=true`（train 67,114 / val 16,835 / test 22,638）。MLlib 逻辑回归/随机森林结果在 `results/spark_baselines/metrics.json`，每个模型的三份预测 Parquet 也逐项覆盖对应 split 的全部窗口。重试日志与退出码在 `artifacts/spark_formal_retry.log`、`artifacts/spark_formal_retry.exitcode`（0）。
 
 性能脚本按原始文件的 SHA-256 稳定排序抽取嵌套 10%/30%/100% 子集，记录原始字节、文件、窗口和区间并集时长。默认每种设置重复三次，记录读取 manifest、计算和写出的时间，另记 Spark 会话创建与端到端时间，并保存 Spark event log。同一 Python 进程中的后续 Spark 会话可能复用 JVM，故会话创建时间不是冷启动时间。`local[n]` 是单物理机的进程/线程并行；共享磁盘和未受控的缓存状态写入记录。脚本对比相同并行槽位，不设置 RAM 硬上限，正式报告中不能声称严格等内存。`--synthetic` 的输出仅用于接口 smoke，不能当正式性能结论。

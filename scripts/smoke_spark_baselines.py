@@ -43,7 +43,7 @@ def main():
                 assert pred.count() == 6
                 assert all(len(r["probabilities"]) == 6 for r in pred.select("probabilities").collect())
                 assert result["models"][kind]["splits"]["test"]["n"] == 6
-            print("PASS synthetic Spark LR/RF six-class schema and prediction smoke")
+            print("PASS synthetic MLlib LR/RF six-class schema and prediction smoke")
     finally:
         spark.stop()
 

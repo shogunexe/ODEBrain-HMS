@@ -183,8 +183,8 @@ def validate_features(bundle, manifest_path, counts, dependencies):
 
 
 def validate_spark_models(bundle, counts, dependencies):
-    path, data = formal_json(bundle["spark_metrics"], "Spark LR/RF", dependencies)
-    need(data.get("experiment_status") == "formal", "Spark LR/RF must be formal")
+    path, data = formal_json(bundle["spark_metrics"], "MLlib LR/RF models", dependencies)
+    need(data.get("experiment_status") == "formal", "MLlib LR/RF models must be formal")
     need(data.get("target_source") == "expert_votes", "Spark target must be expert votes")
     for name, (windows, _) in counts.items():
         need(data.get("counts", {}).get(name) == windows, "Spark count differs for {}".format(name))
@@ -616,8 +616,9 @@ def prepare(bundle_path, output_path, preview=False):
                           "Valid windows: {:,}".format(sum(w for w, _ in counts.values())),
                           "Spark version: {}".format(feature["spark_version"])])
     add(9, deep["odebrain_inspired_hms"][0], ["Full test; deep models refit on train+val",
-        "Spark baselines: training split only", "KL(target || prediction)", *(
-        "Spark {}: {:.4f}".format(name.upper(), spark["models"][name]["splits"]["test"]["kl_window_mean"])
+        "MLlib LR/RF models: training split only", "KL(target || prediction)", *(
+        "{} (Spark MLlib): {:.4f}".format({"lr": "LR", "rf": "RF"}[name],
+                                          spark["models"][name]["splits"]["test"]["kl_window_mean"])
         for name in ("lr", "rf")), *(
         "{}: {:.4f}".format(name, deep[name][1]["kl_window_mean"]) for name in DEEP_MODELS)],
         model=deep["odebrain_inspired_hms"][2][:16],
@@ -631,7 +632,7 @@ def prepare(bundle_path, output_path, preview=False):
         extra={"headline_training_protocol": "train_val_fixed_epoch_refit"})
     add(14, deep["odebrain_inspired_hms"][0], ["Final refit test KL, lower is better", *(
         "{}: {:.4f}".format(name, deep[name][1]["kl_window_mean"]) for name in DEEP_MODELS),
-        "Spark (train only) LR: {:.4f} | RF: {:.4f}".format(*(
+        "MLlib models (train only) LR: {:.4f} | RF: {:.4f}".format(*(
             spark["models"][n]["splits"]["test"]["kl_window_mean"] for n in ("lr", "rf")))],
         model=deep["odebrain_inspired_hms"][2][:16],
         extra={"headline_training_protocol": "train_val_fixed_epoch_refit"})
@@ -639,13 +640,18 @@ def prepare(bundle_path, output_path, preview=False):
         "{}: {:.4f}".format(row["name"], row["kl_window_mean"]) for row in ablation["rows"][:7])],
         model="initial_ablation_runs")
     forecast_scope = forecast_slide_scope(forecast, test_n, test_patients)
-    add(16, forecast_path, ["Initial-run future-node MAE; eligible test set",
+    forecast_protocol = forecast.get("training_protocol")
+    need(forecast_protocol in ("validation_selected_train_only", "train_val_fixed_epoch_refit"),
+         "Forecast training protocol is missing or unknown")
+    forecast_phase = ("Final-refit" if forecast_protocol == "train_val_fixed_epoch_refit"
+                      else "Initial-run")
+    add(16, forecast_path, [forecast_phase + " future-node MAE; eligible test set",
         "Eligible {:,}/{:,}; excluded {:,} for invalid input/target".format(
             forecast["forecast_eligibility"]["eligible_test_windows"], test_n,
             forecast["forecast_eligibility"]["excluded_test_windows"]), *(
         "{}: 1s {:.3f} | 3s {:.3f} | 5s {:.3f}".format(
             row["name"], *(row["mae_by_horizon_s"][h] for h in ("1", "3", "5")))
-        for row in forecast["rows"][:6])], model="initial_forecast_runs",
+        for row in forecast["rows"][:6])], model=forecast_protocol,
         window_count=forecast_scope["n_windows"],
         patient_count=forecast_scope["n_patients"],
         extra={key: value for key, value in forecast_scope.items()

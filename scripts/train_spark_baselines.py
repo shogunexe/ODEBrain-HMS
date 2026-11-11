@@ -1,4 +1,4 @@
-"""Fit Spark LR/RF on versioned features, using only train split for fitting."""
+"""Fit MLlib LR/RF on versioned features, using only train split for fitting."""
 
 import argparse
 import json

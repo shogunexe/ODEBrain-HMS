@@ -49,7 +49,7 @@ def test_spark_nested_metrics_are_visible_and_formal_only_when_verified(tmp_path
     path, spark, _ = _fixture(tmp_path, monkeypatch)
     rows = dashboard._metric_rows(tmp_path / "results")
     test_rows = [row for row in rows if row["split"] == "test"]
-    assert {row["model"] for row in test_rows} == {"Spark LR", "Spark RF"}
+    assert {row["model"] for row in test_rows} == {"逻辑回归（Spark MLlib）", "随机森林（Spark MLlib）"}
     assert all(row["provenance"] == "formal" and row["windows"] == 1
                for row in test_rows)
     spark["experiment_status"] = "real_data_smoke"

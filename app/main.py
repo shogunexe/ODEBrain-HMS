@@ -309,7 +309,7 @@ def _metric_rows(result_root):
 
 
 def _spark_metric_rows(path, obj):
-    """Flatten Spark LR/RF metrics without promoting incomplete runs to formal."""
+    """Flatten MLlib LR/RF metrics without promoting incomplete runs to formal."""
     models = obj.get("models", {})
     features = Path(str(obj.get("features_path", "")))
     if not isinstance(models, dict) or not obj.get("features_path"):
@@ -368,7 +368,8 @@ def _spark_metric_rows(path, obj):
                 provenance = "formal"
             else:
                 provenance = "unverified"
-            result.append({"model": "Spark {}".format(name.upper()), "split": split,
+            model_label = {"lr": "逻辑回归（Spark MLlib）", "rf": "随机森林（Spark MLlib）"}[name]
+            result.append({"model": model_label, "split": split,
                            "phase": "spark_train_only",
                            "seed": 42,
                            "split_hash": split_hash, "provenance": provenance,

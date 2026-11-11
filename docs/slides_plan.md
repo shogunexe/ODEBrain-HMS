@@ -73,7 +73,7 @@ scripts/export_slides_pdf.sh "$PWD/slides/ODEBrain_LOCAL_PREVIEW_pending_publica
 
 `--final` 仍必须读取经 HTTP 200 验证的公开仓库和权重链接；预览证据清单不能用于 `--final`。
 
-实际审计与特征汇总路径以运行命令输出为准。预测图缓存使用 `data/training/graph_forecast_v2` 的逐窗口 eligibility 与按 split 汇总；旧 v1 缓存不作正式证据。分类主表只读取 `results/refit/final_comparison.json`：五个深度模型均在 train+val 上按初训验证选出的固定轮数重训，随后对同一完整测试集评估。准备器调用 refit 汇总器重新核对源初训、最终 `final.pt`、逐窗口预测、指标、患者与窗口全集，并要求正式动力学索引的 checkpoint 哈希等于 refit ODE 的 `final.pt`。初训 `best.pt` 的测试指标不得混入分类主表。Spark LR/RF 仍为训练集基线；消融与图预测若来自初训，会在第 15–16 页明确标注。图预测比较须核对原分类测试窗口数、预测 eligible/excluded 数、原因计数、eligible ID 哈希和 v2 缓存索引哈希；`n_windows` 是预测 eligible 子集数量。任何嵌套的 smoke 或 synthetic 标记均使生成失败。第 4、5、7、8、9、13–23 页的 PNG 在 `results/figures/formal_slides/` 生成，最后才写 `results/slides_evidence.json`，记录原始输入与 PNG 的 SHA256。正式图全部基于实测输入；动力学图和界面图复制经过校验的 PNG。
+实际审计与特征汇总路径以运行命令输出为准。预测图缓存使用 `data/training/graph_forecast_v2` 的逐窗口 eligibility 与按 split 汇总；旧 v1 缓存不作正式证据。分类主表只读取 `results/refit/final_comparison.json`：五个深度模型均在 train+val 上按初训验证选出的固定轮数重训，随后对同一完整测试集评估。准备器调用 refit 汇总器重新核对源初训、最终 `final.pt`、逐窗口预测、指标、患者与窗口全集，并要求正式动力学索引的 checkpoint 哈希等于 refit ODE 的 `final.pt`。初训 `best.pt` 的测试指标不得混入分类主表。逻辑回归和随机森林是使用 Spark MLlib 在人工特征上训练的传统模型，均只用训练集拟合；Spark 本身负责数据处理而不是分类模型。消融仍是初训协议，第 15 页会标注；第 16 页预测对照按其实际 `training_protocol` 标注初训或最终重训，当前交付输入使用最终重训结果。图预测比较须核对原分类测试窗口数、预测 eligible/excluded 数、原因计数、eligible ID 哈希和 v2 缓存索引哈希；`n_windows` 是预测 eligible 子集数量。任何嵌套的 smoke 或 synthetic 标记均使生成失败。第 4、5、7、8、9、13–23 页的 PNG 在 `results/figures/formal_slides/` 生成，最后才写 `results/slides_evidence.json`，记录原始输入与 PNG 的 SHA256。正式图全部基于实测输入；动力学图和界面图复制经过校验的 PNG。
 
 以下四个补充输入尚需由正式实验与实际发布取得，不能由 smoke 案例拼凑：
 

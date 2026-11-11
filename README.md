@@ -11,6 +11,8 @@
 
 ## 数据与研究边界
 
+Spark 是本项目的分布式计算与数据处理框架，并非分类模型或存储系统。特征表保存为 Parquet；逻辑回归（LR）和随机森林（RF）是使用 Spark MLlib 在这些特征上训练的传统分类模型。
+
 使用 [Kaggle HMS 数据](https://www.kaggle.com/competitions/hms-harmful-brain-activity-classification/data)。训练元数据 `train.csv`、EEG `train_eegs/*.parquet` 和频谱 `train_spectrograms/*.parquet` 放在 `data/raw/`；原始数据不进入 Git。当前公平对照的频谱输入由同一 50 秒 EEG 派生，不使用更长的 Kaggle 频谱做主表比较。类序固定为 `seizure, lpd, gpd, lrda, grda, other`。每行偏移指定 50 秒上下文，只有中央 20–30 秒受该行标注。患者级 test 留出约 20%，开发集再分 train/val，固定 seed 42。
 
 官方整包下载曾中断，已通过 `scripts/resume_hms_archive.py` 续传完成。完整性校验命令为 `unzip -t data/raw/hms-harmful-brain-activity-classification.zip`。`scripts/prepare_hms_archive.py` 仅解压训练文件并支持跳过已存在文件。原始数据、归一化参数和图缓存均不进入 Git。
