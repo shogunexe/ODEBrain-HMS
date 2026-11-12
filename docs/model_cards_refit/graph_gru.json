@@ -20,7 +20,7 @@
   "normalizer_record": "artifacts/refit/graph_gru/normalizer_record.json",
   "normalizer_record_sha256": "dbe69aa722750d7f86504c5d431caac65ae5306eb56750e08ca34b72e98f7d27",
   "comparison": "results/refit/final_comparison.json",
-  "comparison_sha256": "4f26fa1c151b74b06813f69ee3a696a3d07ea6d25089b5ee76ff5b4accb6d64d",
+  "comparison_sha256": "942018d1b0b3fc48269bf83fbbaa1886a3a9dff5249aaa90c2929355384f0d59",
   "source_run": "artifacts/runs/graph_gru",
   "source_checkpoint": "artifacts/runs/graph_gru/best.pt",
   "source_checkpoint_sha256": "d2030b322304f199c472a045b0225fefdfbcc2db9b6e67e7ada82222b69fdd2f",

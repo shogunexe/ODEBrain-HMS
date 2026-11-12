@@ -70,6 +70,22 @@ env LD_LIBRARY_PATH=/export/usr/python/3.8.9/lib:${LD_LIBRARY_PATH:-} \
 
 **正式报告主模型表应使用这五个 refit 的测试结果。** 初训 `val` 指标只用于固定轮数和超参数，不充当最终测试效果；初训 `test` 结果若保留，必须单独命名为探索性对照。`scripts/write_model_cards.py --protocol refit` 独立重核 `final_comparison.json`，读取 `final.pt` 并把正式卡写入 `docs/model_cards_refit/`；初训卡仍位于 `docs/model_cards/`。PPT 的正式主表也必须使用同一 refit 汇总，不能混用初训和 refit 行。
 
+### 最终模型间的配对差异区间
+
+五个模型配置和重训轮数已由开发集固定后，可只读冻结的 `test_predictions.csv` 与清单生成描述性区间：
+
+```bash
+env LD_LIBRARY_PATH=/export/usr/python/3.8.9/lib:${LD_LIBRARY_PATH:-} \
+  .venv/bin/python scripts/paired_refit_ci.py \
+  --manifest data/curated/split_manifest.csv \
+  --comparison results/refit/final_comparison.json \
+  --results-dir results/refit \
+  --output results/refit/paired_kl_intervals.json \
+  --n-boot 5000 --seed 42
+```
+
+脚本逐模型复核预测 CSV 的 SHA-256、完整测试窗口、患者、EEG 记录、硬标签、专家软标签、概率和主表 KL；`eeg_id` 若未写入旧预测 CSV，则用 `window_id` 从冻结清单连接。输出分别报告 **患者等权**、**EEG 记录等权**、**窗口等权** 的 ODE 减去各基线模型 KL 差。三个点估计的平均单位不同；95% 百分位区间都以患者为成对重采样单位，并在每次抽样中保留该患者的全部 EEG 记录和窗口。正差值表示 ODE 的 KL 较高。该区间只用于最终模型结果的描述和不确定性表达，不能按测试区间反过来挑选配置，也不能与初训或消融的不同协议结果直接相减。最终模型的区间不能代替独立患者划分或多随机种子重复。
+
 ## 最终 ODE 重训模型的动力学图
 
 ODE 分类 refit 和 ODE 预测预训练 refit 均完成后，可从最终分类 `final.pt` 导出动力学案例：

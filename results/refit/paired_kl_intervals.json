@@ -1,0 +1,161 @@
+{
+  "schema_version": "hms_paired_refit_kl_v1",
+  "status": "formal",
+  "training_protocol": "train_val_fixed_epoch_refit",
+  "split": "test",
+  "purpose": "descriptive_post_selection_evaluation_only",
+  "test_used_for_selection": false,
+  "test_used_for_model_or_configuration_selection": false,
+  "difference_direction": "ODE minus baseline; positive means ODE higher KL",
+  "method": {
+    "resampling_unit": "patient",
+    "paired": true,
+    "n_boot": 5000,
+    "seed": 42,
+    "interval": "percentile_95",
+    "patient_equal": "mean of within-patient window-mean KL differences",
+    "eeg_record_equal": "mean of within-eeg-record window-mean KL differences; patient cluster bootstrap",
+    "window_equal": "mean of window KL differences; patient cluster bootstrap"
+  },
+  "manifest": "/export/home/limianchong/CSproject/data/curated/split_manifest.csv",
+  "manifest_sha256": "685b4ee306a37b73ce01a3c4671eeed11850c6c0ef2c6c11131c79646d7f09c0",
+  "split_hash": "f334b0e31f5faf520f85a2d4c79631caf7edef2102460a8bcd629fc2a699a82f",
+  "final_comparison": "/export/home/limianchong/CSproject/results/refit/final_comparison.json",
+  "final_comparison_sha256": "942018d1b0b3fc48269bf83fbbaa1886a3a9dff5249aaa90c2929355384f0d59",
+  "n_windows": 22638,
+  "n_patients": 389,
+  "n_eeg_records": 3931,
+  "runs": {
+    "tcn": {
+      "predictions": "/export/home/limianchong/CSproject/results/refit/tcn/test_predictions.csv",
+      "predictions_sha256": "9253c56a6185095b81487b7ee37e576654d494b05dd93107e2be6a6cdf3e6098",
+      "checkpoint_sha256": "d0bc1275e4516d4eb9d1d1e7403af69c4e42619ac8a6214d991a0b92fd6a9891"
+    },
+    "spectrogram_cnn": {
+      "predictions": "/export/home/limianchong/CSproject/results/refit/spectrogram_cnn/test_predictions.csv",
+      "predictions_sha256": "2fa1b34d438a18c05443c1bc67919f81ff04df9339ab6a2d2b97a03948faf6f5",
+      "checkpoint_sha256": "d9f089eff0d457f6e373dc6ddd3a130a5656d8f5edf5a8f19b90467b29050c57"
+    },
+    "fusion": {
+      "predictions": "/export/home/limianchong/CSproject/results/refit/fusion/test_predictions.csv",
+      "predictions_sha256": "8bbd2593acf9a137386d24b73be481b14f730dbd332dc69a7a4b39c0e4114335",
+      "checkpoint_sha256": "39cea589bb6b59f384b498ba76c7860e871ed4c5f452607ee6fa68a6910a17de"
+    },
+    "odebrain_inspired_hms": {
+      "predictions": "/export/home/limianchong/CSproject/results/refit/odebrain_inspired_hms/test_predictions.csv",
+      "predictions_sha256": "dee90ea2ac8a3a5a9b96c6798a4f5429c31ce7f535d8e5d300667733c5b1c690",
+      "checkpoint_sha256": "30ec390ffb6c89caab571d6b38e3d82cf7076ad17c40f2f450ce810c012cbbf4"
+    },
+    "graph_gru": {
+      "predictions": "/export/home/limianchong/CSproject/results/refit/graph_gru/test_predictions.csv",
+      "predictions_sha256": "fc5d8d8f0c4244a6f5fc17f169c17eb26b616491e23de20e96ce3799d5b98a97",
+      "checkpoint_sha256": "a2b5311e2d47c633df1408352039a184e38a70349375746d38f7e5be22d4983e"
+    }
+  },
+  "comparisons": {
+    "ode_minus_tcn": {
+      "n_windows": 22638,
+      "n_patients": 389,
+      "n_eeg_records": 3931,
+      "patient_equal": {
+        "difference": 0.23077850758702353,
+        "ci95": [
+          0.1251562288890284,
+          0.33839372318690925
+        ]
+      },
+      "eeg_record_equal": {
+        "difference": 0.4304538728498516,
+        "ci95": [
+          0.04785397718554338,
+          0.9934059243864337
+        ]
+      },
+      "window_equal": {
+        "difference": 0.427604111330575,
+        "ci95": [
+          0.17562341739225074,
+          0.7224173607783397
+        ]
+      }
+    },
+    "ode_minus_spectrogram_cnn": {
+      "n_windows": 22638,
+      "n_patients": 389,
+      "n_eeg_records": 3931,
+      "patient_equal": {
+        "difference": 0.12130035810166513,
+        "ci95": [
+          0.04271506703649763,
+          0.206278350827369
+        ]
+      },
+      "eeg_record_equal": {
+        "difference": 0.32220517587555986,
+        "ci95": [
+          0.030550472432927054,
+          0.7767702517949803
+        ]
+      },
+      "window_equal": {
+        "difference": 0.30476736845953156,
+        "ci95": [
+          0.07668434640065225,
+          0.5887546641456202
+        ]
+      }
+    },
+    "ode_minus_fusion": {
+      "n_windows": 22638,
+      "n_patients": 389,
+      "n_eeg_records": 3931,
+      "patient_equal": {
+        "difference": 0.3042429224243517,
+        "ci95": [
+          0.21829607515629054,
+          0.39407368078051036
+        ]
+      },
+      "eeg_record_equal": {
+        "difference": 0.6870426289159127,
+        "ci95": [
+          0.30577376866022227,
+          1.2808690215276557
+        ]
+      },
+      "window_equal": {
+        "difference": 0.5745719067213994,
+        "ci95": [
+          0.3185316172120628,
+          0.9177407003623845
+        ]
+      }
+    },
+    "ode_minus_graph_gru": {
+      "n_windows": 22638,
+      "n_patients": 389,
+      "n_eeg_records": 3931,
+      "patient_equal": {
+        "difference": -0.023480493664108763,
+        "ci95": [
+          -0.13372646116761985,
+          0.08695467542811118
+        ]
+      },
+      "eeg_record_equal": {
+        "difference": 0.5413647970020553,
+        "ci95": [
+          0.2284829108026437,
+          0.990966185448685
+        ]
+      },
+      "window_equal": {
+        "difference": 0.26653330033779343,
+        "ci95": [
+          0.007795603279640412,
+          0.5365495540658825
+        ]
+      }
+    }
+  }
+}

@@ -1,0 +1,44 @@
+{
+  "schema_version": "hms_spark_eeg_record_equal_kl_v1",
+  "experiment_status": "formal",
+  "split": "test",
+  "aggregation_unit": "eeg_id",
+  "definition": "mean window KL within each EEG recording, then unweighted mean across EEG recordings",
+  "test_used_for_selection": false,
+  "manifest": "/export/home/limianchong/CSproject/data/curated/split_manifest.csv",
+  "manifest_sha256": "685b4ee306a37b73ce01a3c4671eeed11850c6c0ef2c6c11131c79646d7f09c0",
+  "split_hash": "f334b0e31f5faf520f85a2d4c79631caf7edef2102460a8bcd629fc2a699a82f",
+  "original_metrics": "/export/home/limianchong/CSproject/results/spark_baselines/metrics.json",
+  "original_metrics_sha256": "9876be6157c5428ce94ca8f83cd46fbce60ceeadf1de2f2c322430e16fe1f9fa",
+  "models": {
+    "lr": {
+      "n_windows": 22638,
+      "n_patients": 389,
+      "n_eeg_records": 3931,
+      "kl_window_mean": 1.261691884822944,
+      "kl_patient_equal_mean": 1.3448686459013666,
+      "kl_eeg_record_equal_mean": 1.344392400719154,
+      "predictions_path": "/export/home/limianchong/CSproject/results/spark_baselines/lr_test_predictions",
+      "prediction_parts_sha256": {
+        "part-00000-cc93623f-b155-4ca7-b956-e366934c1f7c-c000.snappy.parquet": "cd79dfe613b99d11dd43d5a0118c90d46620b16bfbc8806de186ed82d4b0596f",
+        "part-00001-cc93623f-b155-4ca7-b956-e366934c1f7c-c000.snappy.parquet": "399c78c791f750c4798730f5fb03826f86a66d8c84e8e536dd29653f59a52186"
+      }
+    },
+    "rf": {
+      "n_windows": 22638,
+      "n_patients": 389,
+      "n_eeg_records": 3931,
+      "kl_window_mean": 1.1568140532813007,
+      "kl_patient_equal_mean": 1.1462422715273473,
+      "kl_eeg_record_equal_mean": 1.1798114593858662,
+      "predictions_path": "/export/home/limianchong/CSproject/results/spark_baselines/rf_test_predictions",
+      "prediction_parts_sha256": {
+        "part-00000-2d5ccc04-1999-41d9-b939-56609c5d1a6b-c000.snappy.parquet": "cd79dfe613b99d11dd43d5a0118c90d46620b16bfbc8806de186ed82d4b0596f",
+        "part-00001-2d5ccc04-1999-41d9-b939-56609c5d1a6b-c000.snappy.parquet": "f3626902c59fac8b5b07696601c805f33a347f4fa54ca67e9b2821c1872f0341"
+      }
+    }
+  },
+  "n_windows": 22638,
+  "n_patients": 389,
+  "n_eeg_records": 3931
+}

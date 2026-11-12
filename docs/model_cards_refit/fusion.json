@@ -20,7 +20,7 @@
   "normalizer_record": "artifacts/refit/fusion/normalizer_record.json",
   "normalizer_record_sha256": "20f8f2926a40ec743d308a317845cfa98fc63071fc59e0836d042c9acd001ae2",
   "comparison": "results/refit/final_comparison.json",
-  "comparison_sha256": "4f26fa1c151b74b06813f69ee3a696a3d07ea6d25089b5ee76ff5b4accb6d64d",
+  "comparison_sha256": "942018d1b0b3fc48269bf83fbbaa1886a3a9dff5249aaa90c2929355384f0d59",
   "source_run": "artifacts/runs/fusion",
   "source_checkpoint": "artifacts/runs/fusion/best.pt",
   "source_checkpoint_sha256": "f504a5f5583f5dc3978799b0d965d36f89955b38baac6a7c783849f51b38341f",

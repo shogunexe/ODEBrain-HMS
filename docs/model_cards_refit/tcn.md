@@ -35,7 +35,7 @@
 | test | 22638 | 389 | 1.199999 | 1.183097 | 0.463789 |
 
 - 测试预测逐窗口覆盖冻结测试集；指标与预测已由 `scripts/refit_final.py summarize` 重算核对。
-- 五模型正式对比表：`results/refit/final_comparison.json`；SHA256：`4f26fa1c151b74b06813f69ee3a696a3d07ea6d25089b5ee76ff5b4accb6d64d`。
+- 五模型正式对比表：`results/refit/final_comparison.json`；SHA256：`942018d1b0b3fc48269bf83fbbaa1886a3a9dff5249aaa90c2929355384f0d59`。
 - 结果只对应此处固定患者划分、预处理和文件哈希；跨中心、设备、人群泛化未经验证。
 
 ## 限制

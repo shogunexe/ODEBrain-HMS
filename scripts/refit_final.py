@@ -29,13 +29,25 @@ from src.data.dataset import (HMSWindowDataset, RecordingBatchSampler,
                               fit_graph_normalizer, hms_collate)
 from src.data.graph_cache import GraphCacheReader
 from src.data.hms import CLASSES, manifest_hash
-from src.evaluation.metrics import classification_metrics, patient_bootstrap_kl
+from src.evaluation.metrics import classification_metrics, patient_bootstrap_kl, sample_kl
 from src.training.engine import load_checkpoint, save_checkpoint, train_epoch
 
 
 GRAPH_MODELS = ("odebrain_inspired_hms", "graph_gru")
 CLASSIFIERS = ("tcn", "spectrogram_cnn", "fusion") + GRAPH_MODELS
 SCHEMA = "hms_final_refit_v1"
+
+
+def eeg_record_equal_kl(target, probabilities, eeg_ids):
+    """Add an EEG-record aggregation without changing frozen ablation code."""
+    kl = sample_kl(target, probabilities)
+    records = np.asarray(eeg_ids).astype(str)
+    if records.ndim != 1 or len(records) != len(kl) or not len(records) or np.any(records == ""):
+        raise ValueError("EEG record IDs must match the evaluated windows")
+    unique, inverse = np.unique(records, return_inverse=True)
+    means = np.bincount(inverse, weights=kl) / np.bincount(inverse)
+    return {"n_eeg_records": int(len(unique)),
+            "kl_eeg_record_equal_mean": float(means.mean())}
 
 
 def _atomic_json(path, value):
@@ -63,7 +75,7 @@ def _manifest_path(config):
 
 def _manifest_view(path):
     table = pd.read_csv(path)
-    required = {"window_id", "patient_id", "eeg_path", "audit_reason", "split"}
+    required = {"window_id", "patient_id", "eeg_id", "eeg_path", "audit_reason", "split"}
     if not required.issubset(table.columns):
         raise ValueError("Refit requires an audited patient split manifest")
     if table.window_id.isna().any() or table.window_id.astype(str).duplicated().any():
@@ -581,7 +593,17 @@ def evaluate_refit(run_dir, output_dir=None, batch_size=8, workers=0, device="cp
         raise ValueError("Final test evaluation did not cover every held-out window")
     target = np.concatenate(targets)
     probs = np.concatenate(probabilities)
+    manifest_rows = source["table"].set_index(
+        source["table"].window_id.astype(str), verify_integrity=True).loc[windows]
+    if (manifest_rows.eeg_id.isna().any() or
+            manifest_rows.eeg_id.astype(str).eq("").any() or
+            manifest_rows.patient_id.astype(str).tolist() != patients or
+            not manifest_rows.split.eq("test").all() or
+            not manifest_rows.audit_reason.eq("ok").all()):
+        raise ValueError("Refit test EEG record IDs do not align with frozen windows")
+    eeg_ids = manifest_rows.eeg_id.astype(str).tolist()
     metrics = classification_metrics(target, probs, hard_labels, patients)
+    metrics.update(eeg_record_equal_kl(target, probs, eeg_ids))
     metrics["kl_patient_bootstrap"] = patient_bootstrap_kl(target, probs, patients)
     metrics.update({"experiment_status": "formal", "smoke_subset": False,
                     "synthetic": False, "split": "test",
@@ -597,6 +619,7 @@ def evaluate_refit(run_dir, output_dir=None, batch_size=8, workers=0, device="cp
                   ROOT / "results" / "refit" / run["dir"].name).resolve()
     output_dir.mkdir(parents=True, exist_ok=True)
     predictions = pd.DataFrame({"window_id": windows, "patient_id": patients,
+                                "eeg_id": eeg_ids,
                                 "class_id": hard_labels})
     for index, name in enumerate(CLASSES):
         predictions["target_" + name] = target[:, index]
@@ -644,7 +667,9 @@ def summarize_refits(run_dirs, output_path, results_root=None):
                 metrics.get("n_windows") != len(expected_ids) or
                 metrics.get("n_patients") != len(expected_patients)):
             raise ValueError("Final test metrics provenance differs from refit: %s" % name)
-        frame = pd.read_csv(predictions_path)
+        frame = pd.read_csv(predictions_path, dtype={"window_id": str,
+                                                     "patient_id": str,
+                                                     "eeg_id": str})
         needed = {"window_id", "patient_id", "class_id"}
         needed.update("target_" + label for label in CLASSES)
         needed.update("pred_" + label for label in CLASSES)
@@ -657,6 +682,12 @@ def summarize_refits(run_dirs, output_path, results_root=None):
         if (frame.patient_id.astype(str).tolist() != manifest_rows.patient_id.astype(str).tolist() or
                 frame.class_id.astype(int).tolist() != manifest_rows.class_id.astype(int).tolist()):
             raise ValueError("Prediction identities or labels differ from manifest: %s" % name)
+        if (manifest_rows.eeg_id.isna().any() or
+                manifest_rows.eeg_id.astype(str).eq("").any() or
+                ("eeg_id" in frame and
+                 (frame.eeg_id.isna().any() or
+                  frame.eeg_id.astype(str).tolist() != manifest_rows.eeg_id.astype(str).tolist()))):
+            raise ValueError("Prediction EEG record IDs differ from manifest: %s" % name)
         target_columns = ["target_" + label for label in CLASSES]
         pred_columns = ["pred_" + label for label in CLASSES]
         target = frame[target_columns].to_numpy(dtype=np.float64)
@@ -668,14 +699,24 @@ def summarize_refits(run_dirs, output_path, results_root=None):
             raise ValueError("Test targets or probabilities are invalid: %s" % name)
         recomputed = classification_metrics(target, probs, frame.class_id.to_numpy(),
                                             frame.patient_id.astype(str).to_numpy())
+        recomputed.update(eeg_record_equal_kl(target, probs,
+                          manifest_rows.eeg_id.astype(str).to_numpy()))
         for key in ("kl_window_mean", "kl_patient_equal_mean", "macro_f1"):
             if not math.isclose(float(metrics.get(key, float("nan"))), recomputed[key],
                                 rel_tol=1e-6, abs_tol=1e-7):
                 raise ValueError("Test metric differs from predictions (%s): %s" % (name, key))
+        if ("kl_eeg_record_equal_mean" in metrics and
+                not math.isclose(float(metrics["kl_eeg_record_equal_mean"]),
+                                 recomputed["kl_eeg_record_equal_mean"],
+                                 rel_tol=1e-6, abs_tol=1e-7)):
+            raise ValueError("Test EEG-record KL differs from predictions: %s" % name)
+        if "n_eeg_records" in metrics and metrics["n_eeg_records"] != recomputed["n_eeg_records"]:
+            raise ValueError("Test EEG-record count differs from predictions: %s" % name)
         if metrics.get("confusion_matrix") != recomputed["confusion_matrix"]:
             raise ValueError("Test confusion matrix differs from predictions: %s" % name)
         identity = (source["split_hash"], run["config"]["manifest_sha256"],
-                    frozenset(expected_ids), frozenset(expected_patients))
+                    frozenset(expected_ids), frozenset(expected_patients),
+                    frozenset(manifest_rows.eeg_id.astype(str)))
         if shared is None:
             shared = identity
         elif identity != shared:
@@ -683,9 +724,12 @@ def summarize_refits(run_dirs, output_path, results_root=None):
         rows.append({"name": name,
                      "kl_window_mean": recomputed["kl_window_mean"],
                      "kl_patient_equal_mean": recomputed["kl_patient_equal_mean"],
+                     "kl_eeg_record_equal_mean": recomputed["kl_eeg_record_equal_mean"],
                      "macro_f1": recomputed["macro_f1"],
                      "n_windows": len(expected_ids),
                      "n_patients": len(expected_patients),
+                     "n_eeg_records": recomputed["n_eeg_records"],
+                     "eeg_id_source": "prediction_and_manifest" if "eeg_id" in frame else "manifest_by_window_id",
                      "fixed_refit_epochs": source["selected_epochs"],
                      "source_best_epoch_zero_indexed": source["selected_epochs"] - 1,
                      "checkpoint_sha256": file_sha256(run["checkpoint_path"]),
@@ -698,6 +742,7 @@ def summarize_refits(run_dirs, output_path, results_root=None):
               "split": "test", "split_hash": shared[0],
               "manifest_sha256": shared[1],
               "n_windows": len(shared[2]), "n_patients": len(shared[3]),
+              "n_eeg_records": len(shared[4]),
               "rows": rows, "test_used_for_selection": False}
     _atomic_json(output_path, result)
     return {"output": str(output_path), "n_models": len(rows),

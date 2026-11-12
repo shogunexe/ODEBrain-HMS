@@ -167,9 +167,16 @@ def _formal_readiness(inputs_path):
         manifest, _, _, _, split_hash, counts = gate.validate_manifest(bundle, dependencies)
         gate.validate_features(bundle, manifest, counts, dependencies)
         gate.validate_spark_models(bundle, counts, dependencies)
+        gate.validate_spark_record_metrics(bundle, manifest, split_hash, counts, dependencies)
+        gate.validate_weighted_classification(bundle, manifest, split_hash, counts, dependencies)
         deep = gate.validate_deep(bundle, manifest, split_hash, counts, dependencies)
+        gate.validate_paired_refit(bundle, manifest, split_hash, counts, dependencies)
         gate.validate_benchmark(bundle, counts, dependencies)
-        gate.validate_comparison(bundle, "ablation", split_hash, counts, dependencies)
+        ablation_path, ablation = gate.validate_comparison(
+            bundle, "ablation", split_hash, counts, dependencies)
+        gate.validate_ablation_weighted(bundle, ablation_path, ablation,
+                                        split_hash, counts, dependencies)
+        gate.validate_disagreement(bundle, manifest, split_hash, counts, dependencies)
         gate.validate_comparison(bundle, "forecast_comparison", split_hash, counts, dependencies)
         gate.validate_dynamics(bundle, manifest, split_hash, counts,
                                deep["odebrain_inspired_hms"][2], dependencies)
@@ -285,17 +292,26 @@ def _wait_rendered(cdp, page, results_root, min_charts, timeout):
         timeout, json.dumps(last, ensure_ascii=False)[:900]))
 
 
-def _click_page(cdp, page):
+def _click_page(cdp, page, timeout):
     expression = """(() => {
       const wanted = %s;
-      const labels = [...document.querySelectorAll('label')];
-      const match = labels.find(x => x.innerText.trim() === wanted);
+      const sidebar = document.querySelector('[data-testid="stSidebar"]') || document;
+      const labels = [...sidebar.querySelectorAll('label,[role="radio"]')];
+      const match = labels.find(x => (x.innerText || x.textContent || '').trim() === wanted);
       if (!match) return false;
       match.click();
       return true;
     })()""" % json.dumps(page, ensure_ascii=False)
-    if not cdp.evaluate(expression):
-        raise CaptureError("Cannot find Streamlit sidebar page option: {}".format(page))
+    deadline = time.monotonic() + timeout
+    while time.monotonic() < deadline:
+        if cdp.evaluate(expression):
+            return
+        time.sleep(.4)
+    sidebar = cdp.evaluate("""(() => {
+      const x = document.querySelector('[data-testid="stSidebar"]');
+      return x ? x.innerText.slice(0,1200) : 'sidebar missing';
+    })()""")
+    raise CaptureError("Cannot find Streamlit sidebar page option {}: {}".format(page, sidebar))
 
 
 def _validate_png(blob, min_width=900, min_height=600):
@@ -434,7 +450,7 @@ def capture(args):
                     time.sleep(.4)
                 else:
                     raise CaptureError("Streamlit shell never rendered")
-                _click_page(cdp, args.page)
+                _click_page(cdp, args.page, args.timeout)
             min_charts = max(REQUIRED_CHARTS[args.page], args.min_charts or 0)
             probe = _wait_rendered(cdp, args.page, results_root, min_charts, args.timeout)
             if formal and re.search(r"real_hms_smoke|非正式证据|真实 HMS 子集 smoke", probe["visibleText"], re.I):

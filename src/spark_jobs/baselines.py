@@ -36,8 +36,13 @@ def _metrics(prediction):
     scored = scored.withColumn("kl", F.aggregate(terms, F.lit(0.0), lambda acc, term: acc + term))
     kl_window = scored.agg(F.avg("kl")).first()[0]
     kl_patient = scored.groupBy("patient_id").agg(F.avg("kl").alias("patient_kl")).agg(F.avg("patient_kl")).first()[0]
+    record_summary = (scored.groupBy("eeg_id").agg(F.avg("kl").alias("record_kl"))
+                      .agg(F.avg("record_kl").alias("equal_kl"),
+                           F.count("*").alias("n_records")).first())
     return {"n": total, "accuracy": sum(confusion[i][i] for i in range(6)) / max(total, 1),
             "kl_window_mean": kl_window, "kl_patient_equal_mean": kl_patient,
+            "kl_eeg_record_equal_mean": record_summary["equal_kl"],
+            "n_eeg_records": record_summary["n_records"],
             "macro_f1": sum(f1) / 6, "macro_recall": sum(recall) / 6,
             "per_class_precision": precision, "per_class_recall": recall,
             "per_class_f1": f1, "confusion": confusion}
@@ -53,10 +58,13 @@ def train_baselines(spark, features_path, output_dir, seed=42, rf_trees=100,
     from pyspark.ml.functions import vector_to_array
     source = spark.read.parquet(features_path)
     cols = feature_names()
-    missing = set(cols + ["split", "class_id", "quality_ok"]) - set(source.columns)
+    missing = set(cols + ["window_id", "eeg_id", "patient_id", "split",
+                          "class_id", "quality_ok"]) - set(source.columns)
     if missing:
         raise ValueError("feature table missing: %s" % sorted(missing))
     data = source.filter(F.col("quality_ok") & F.col("class_id").between(0, 5))
+    if data.filter(F.col("eeg_id").isNull()).limit(1).count():
+        raise ValueError("Spark baseline windows require EEG recording IDs")
     target_available = set(TARGET_COLS).issubset(source.columns)
     if target_available:
         target_sum = sum((F.col(key) for key in TARGET_COLS), F.lit(0.0))

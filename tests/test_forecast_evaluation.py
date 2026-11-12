@@ -54,12 +54,14 @@ class ForecastEvaluationTests(unittest.TestCase):
                        "graph_gru": torch.ones_like(target) * 2,
                        "persistence": torch.zeros_like(target)}
         acc.add(predictions, target, future_mask, observed_mask,
-                ["p1", "p2"], np.array([0.]), np.array([2.]))
+                ["p1", "p2"], ["e1", "e2"], np.array([0.]), np.array([2.]))
         result = acc.result()
         for row in result["odebrain_inspired_hms"]:
             self.assertEqual(row["valid_node_feature_values"], 3)
             self.assertEqual(row["mae"], 2.0)
             self.assertEqual(row["patient_macro_mae"], 2.0)
+            self.assertEqual(row["eeg_record_equal_mae"], 2.0)
+            self.assertEqual(row["eeg_records_with_valid_target"], 2)
         self.assertEqual(result["graph_gru"][0]["mae"], 4.0)
         self.assertEqual(result["persistence"][0]["mae"], 0.0)
         rows = _comparison_rows(result)
@@ -67,6 +69,23 @@ class ForecastEvaluationTests(unittest.TestCase):
                          {"odebrain_inspired_hms", "graph_gru", "persistence"})
         self.assertEqual(rows[0]["mae_by_horizon_s"],
                          {"1": 2.0, "3": 2.0, "5": 2.0})
+        self.assertEqual(rows[0]["eeg_record_equal_mae_by_horizon_s"],
+                         {"1": 2.0, "3": 2.0, "5": 2.0})
+
+    def test_eeg_record_equal_mae_does_not_weight_records_by_window_count(self):
+        acc = ErrorAccumulator((1,))
+        target = torch.zeros(3, 1, 1, 1)
+        predictions = {name: torch.tensor([0., 0., 9.]).reshape(3, 1, 1, 1)
+                       for name in ("odebrain_inspired_hms", "graph_gru", "persistence")}
+        acc.add(predictions, target, torch.ones(3, 1, 1, dtype=torch.bool),
+                torch.ones(3, 1, 1, dtype=torch.bool),
+                ["p1", "p1", "p1"], ["e1", "e1", "e2"],
+                np.array([0.]), np.array([1.]))
+        row = acc.result()["odebrain_inspired_hms"][0]
+        self.assertEqual(row["mae"], 3.0)
+        self.assertEqual(row["patient_macro_mae"], 3.0)
+        self.assertEqual(row["eeg_record_equal_mae"], 4.5)
+        self.assertEqual(row["eeg_records_with_valid_target"], 2)
 
     def test_smoke_cannot_write_formal_filename(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -77,12 +96,19 @@ class ForecastEvaluationTests(unittest.TestCase):
             self.assertFalse(output.exists())
 
     def test_slide_gate_accepts_formal_rows_and_rejects_smoke(self):
-        rows = [{"name": name, "mae_by_horizon_s": {"1": 1.0, "3": 2.0, "5": 3.0}}
+        rows = [{"name": name, "mae_by_horizon_s": {"1": 1.0, "3": 2.0, "5": 3.0},
+                 "eeg_record_equal_mae_by_horizon_s": {"1": 1.0, "3": 2.0, "5": 3.0}}
                 for name in ("odebrain_inspired_hms", "graph_gru", "persistence")]
+        methods = {row["name"]: [{"horizon_seconds": horizon,
+                                   "patient_macro_mae": float(horizon),
+                                   "eeg_record_equal_mae": float(horizon)}
+                                  for horizon in (1, 3, 5)] for row in rows}
         payload = {"experiment_status": "formal", "smoke_subset": False,
                    "synthetic": False, "schema_version": "hms_forecast_comparison_v2",
                    "split": "test", "split_hash": "a" * 64,
-                   "n_windows": 2, "n_patients": 2, "rows": rows}
+                   "n_windows": 2, "n_patients": 2, "n_eeg_records": 2,
+                   "eeg_record_ids_sha256": hashlib.sha256(b"e1\ne2").hexdigest(),
+                   "rows": rows, "methods": methods}
         with tempfile.TemporaryDirectory() as directory:
             manifest = Path(directory) / "manifest.csv"
             manifest.write_text("window_id\n1\n2\n", encoding="utf-8")

@@ -201,6 +201,73 @@ def validate_spark_models(bundle, counts, dependencies):
     return path, data
 
 
+def validate_spark_record_metrics(bundle, manifest_path, split_hash, counts, dependencies):
+    """Recompute record-equal KL from frozen MLlib prediction Parquet."""
+    from scripts.supplement_spark_record_metrics import supplement
+
+    path, data = formal_json(bundle["spark_record_metrics"], "MLlib record-equal KL", dependencies)
+    need(data.get("schema_version") == "hms_spark_eeg_record_equal_kl_v1" and
+         data.get("experiment_status") == "formal" and data.get("split") == "test" and
+         data.get("aggregation_unit") == "eeg_id" and
+         data.get("test_used_for_selection") is False,
+         "MLlib record-equal evidence has wrong protocol")
+    same_hash(data.get("split_hash"), split_hash, "MLlib record-equal KL")
+    need(data.get("manifest_sha256") == digest(manifest_path) and
+         data.get("n_windows") == counts["test"][0] and
+         data.get("n_patients") == counts["test"][1],
+         "MLlib record-equal test coverage differs")
+    spark_path = path_from(bundle["spark_metrics"])
+    need(data.get("original_metrics_sha256") == digest(spark_path),
+         "MLlib record-equal evidence uses another baseline result")
+    try:
+        with tempfile.TemporaryDirectory(prefix="formal-slides-spark-record-") as temporary:
+            recomputed = supplement(manifest_path, spark_path,
+                                    Path(temporary) / "eeg_record_equal_kl.json")
+    except (OSError, ValueError, KeyError) as exc:
+        raise EvidenceError("MLlib record-equal evidence failed revalidation: {}".format(exc))
+    need(recomputed == data, "MLlib record-equal evidence differs from saved predictions")
+    for model in ("lr", "rf"):
+        row = data["models"][model]
+        need(row.get("n_eeg_records") == data.get("n_eeg_records"),
+             "MLlib record count differs: {}".format(model))
+        finite_number(row.get("kl_eeg_record_equal_mean"), model + " record-equal KL", 0)
+        for name, checksum in row["prediction_parts_sha256"].items():
+            dependencies[relative(path_from(str(Path(row["predictions_path"]) / name)))] = checksum
+    return path, data
+
+
+def validate_weighted_classification(bundle, manifest_path, split_hash, counts, dependencies):
+    """Recompute three weighting views and auxiliary classification metrics."""
+    from scripts.supplement_classification_metrics import supplement
+
+    path, data = formal_json(bundle["classification_weighted_metrics"],
+                             "Weighted classification metrics", dependencies)
+    need(data.get("schema_version") == "hms_classification_weighted_metrics_v1" and
+         data.get("experiment_status") == "formal" and data.get("split") == "test" and
+         data.get("test_used_for_selection") is False,
+         "Weighted classification evidence has wrong protocol")
+    same_hash(data.get("split_hash"), split_hash, "Weighted classification metrics")
+    need(data.get("manifest_sha256") == digest(manifest_path) and
+         data.get("n_windows") == counts["test"][0] and
+         data.get("n_patients") == counts["test"][1],
+         "Weighted classification test coverage differs")
+    try:
+        with tempfile.TemporaryDirectory(prefix="formal-slides-weighted-clf-") as temporary:
+            regenerated = supplement(manifest_path, path_from(bundle["refit_comparison"]),
+                                     path_from(bundle["spark_metrics"]),
+                                     path_from(bundle["spark_record_metrics"]),
+                                     Path(temporary) / "classification_weighted_metrics.json")
+    except (OSError, ValueError, KeyError) as exc:
+        raise EvidenceError("Weighted classification evidence failed revalidation: {}".format(exc))
+    need(regenerated == data, "Weighted classification evidence differs from saved predictions")
+    for row in data["models"].values():
+        for name, checksum in row["prediction_sha256"].items():
+            source = Path(row["predictions_path"])
+            part = source if source.is_file() else source / name
+            dependencies[relative(path_from(str(part)))] = checksum
+    return path, data
+
+
 def validate_deep(bundle, manifest_path, split_hash, counts, dependencies):
     """Recompute the five-model refit summary before accepting headline results."""
     from scripts.refit_final import summarize_refits
@@ -224,7 +291,8 @@ def validate_deep(bundle, manifest_path, split_hash, counts, dependencies):
          "Refit comparison does not cover the complete patient-disjoint test set")
     rows = comparison.get("rows")
     need(isinstance(rows, list) and len(rows) == len(DEEP_MODELS) and
-         [row.get("name") for row in rows] == list(DEEP_MODELS),
+         all(isinstance(row, dict) for row in rows) and
+         {row.get("name") for row in rows} == set(DEEP_MODELS),
          "Refit comparison must contain exactly the five distinct model rows")
     run_dirs = {}
     for row in rows:
@@ -272,6 +340,38 @@ def validate_deep(bundle, manifest_path, split_hash, counts, dependencies):
     return output
 
 
+def validate_paired_refit(bundle, manifest_path, split_hash, counts, dependencies):
+    """Recompute descriptive patient-cluster intervals from final test predictions."""
+    from scripts.paired_refit_ci import analyze
+
+    path, data = formal_json(bundle["paired_refit_ci"], "Final paired KL intervals", dependencies)
+    need(data.get("schema_version") == "hms_paired_refit_kl_v1" and
+         data.get("status") == "formal" and data.get("split") == "test" and
+         data.get("training_protocol") == "train_val_fixed_epoch_refit" and
+         data.get("test_used_for_selection") is False and
+         data.get("test_used_for_model_or_configuration_selection") is False and
+         data.get("method", {}).get("resampling_unit") == "patient" and
+         data.get("method", {}).get("paired") is True,
+         "Final paired intervals have wrong test protocol")
+    same_hash(data.get("split_hash"), split_hash, "Final paired KL intervals")
+    need(data.get("manifest_sha256") == digest(manifest_path) and
+         data.get("n_windows") == counts["test"][0] and
+         data.get("n_patients") == counts["test"][1] and
+         data.get("final_comparison_sha256") == digest(path_from(bundle["refit_comparison"])),
+         "Final paired intervals differ from frozen refit test evidence")
+    try:
+        regenerated = analyze(manifest_path, path_from(bundle["refit_comparison"]),
+                              path_from(bundle["refit_comparison"]).parent,
+                              n_boot=data["method"]["n_boot"], seed=data["method"]["seed"])
+    except (OSError, ValueError, KeyError) as exc:
+        raise EvidenceError("Final paired intervals failed revalidation: {}".format(exc))
+    need(regenerated == data, "Final paired intervals differ from saved predictions")
+    for row in data["runs"].values():
+        prediction = path_from(row["predictions"])
+        dependencies[relative(prediction)] = digest(prediction)
+    return path, data
+
+
 def validate_benchmark(bundle, counts, dependencies):
     path, rows = formal_json(bundle["benchmark_runs"], "Spark benchmark runs", dependencies)
     need(isinstance(rows, list) and rows, "Benchmark runs missing")
@@ -298,6 +398,30 @@ def validate_benchmark(bundle, counts, dependencies):
         row.get("method") for row in summary if row.get("subset") == "subset_100" and
         row.get("repeats", 0) >= 3}), "Benchmark summary lacks three-repeat full-data comparison")
     return path, rows, summary_path, summary
+
+
+def validate_disagreement(bundle, manifest_path, split_hash, counts, dependencies):
+    """Bind the existing initial-run expert-disagreement analysis to page 15."""
+    path, data = formal_json(bundle["disagreement_analysis"], "Expert disagreement", dependencies)
+    need(data.get("schema_version") == "hms_disagreement_analysis_v1" and
+         data.get("status") == "formal" and data.get("split_hash") == split_hash and
+         data.get("manifest_sha256") == digest(manifest_path) and
+         data.get("method", {}).get("threshold_source") == "full_validation_split_median",
+         "Expert disagreement analysis lacks formal validation-set provenance")
+    threshold = finite_number(data["method"].get("threshold_nats"),
+                              "Expert entropy threshold", 0)
+    models = data.get("metrics", {})
+    for name in ("tcn", "graph_gru", "odebrain_inspired_hms"):
+        groups = models.get(name, {})
+        need(groups.get("all", {}).get("n_windows") == counts["test"][0],
+             "Expert disagreement does not cover the test set: {}".format(name))
+        low, high = groups.get("low", {}), groups.get("high", {})
+        need(isinstance(low.get("n_windows"), int) and isinstance(high.get("n_windows"), int)
+             and low["n_windows"] + high["n_windows"] == counts["test"][0],
+             "Expert disagreement strata do not cover test windows: {}".format(name))
+        for group in (low, high):
+            finite_number(group.get("kl_window_mean"), "Expert disagreement KL", 0)
+    return path, data, threshold
 
 
 def validate_comparison(bundle, key, split_hash, counts, dependencies, min_rows=2):
@@ -329,19 +453,103 @@ def validate_comparison(bundle, key, split_hash, counts, dependencies, min_rows=
              data.get("n_windows") == expected.get("eligible") and
              data.get("n_patients", 0) > 0 and data.get("n_patients", 0) <= counts["test"][1],
              "Forecast test counts or eligibility provenance differ")
+        positive_int(data.get("n_eeg_records"), "Forecast EEG record count")
+        need(isinstance(data.get("eeg_record_ids_sha256"), str) and
+             HEX64.fullmatch(data["eeg_record_ids_sha256"]),
+             "Forecast EEG record identity hash missing")
     else:
         need(data.get("n_windows") == counts["test"][0] and data.get("n_patients") == counts["test"][1],
              "{} test counts differ".format(key))
     rows = data.get("rows")
-    need(isinstance(rows, list) and len(rows) >= min_rows, "{} needs measured comparison rows".format(key))
+    need(isinstance(rows, list) and len(rows) >= min_rows and
+         all(isinstance(row, dict) for row in rows),
+         "{} needs measured comparison rows".format(key))
+    if key == "ablation":
+        from scripts.run_ablations import CODE_FILES, load_plan
+        plan_path = path_from(data.get("plan"))
+        _, plan = load_plan(plan_path)
+        need(data.get("schema_version") == "ode_ablation_formal_v1" and
+             data.get("plan_sha256") == digest(plan_path) and
+             data.get("manifest_sha256") == digest(path_from(bundle["manifest"])) and
+             len(rows) == len(plan["arms"]) and
+             {row.get("name") for row in rows} == {arm["name"] for arm in plan["arms"]} and
+             data.get("code_sha256") == {name: digest(ROOT / name) for name in CODE_FILES},
+             "Ablation does not cover all frozen plan arms or source hashes")
+        dependencies[relative(plan_path)] = digest(plan_path)
     for row in rows:
         need(isinstance(row.get("name"), str) and row["name"], "Unnamed {} row".format(key))
         if key == "ablation":
             finite_number(row.get("kl_window_mean"), "Ablation KL", 0)
+            need(row.get("n_windows") == counts["test"][0] and
+                 row.get("n_patients") == counts["test"][1] and
+                 row.get("split_hash") == split_hash and row.get("seed") == plan["seed"],
+                 "Ablation arm test scope differs: {}".format(row["name"]))
+            for source_key, checksum_key in (("checkpoint", "checkpoint_sha256"),
+                                             ("config", "config_sha256"),
+                                             ("metrics_file", "metrics_sha256"),
+                                             ("predictions_file", "predictions_sha256")):
+                source = path_from(row.get(source_key))
+                need(digest(source) == row.get(checksum_key),
+                     "Ablation arm source hash differs: {} {}".format(row["name"], source_key))
+                dependencies[relative(source)] = digest(source)
         else:
             for horizon in ("1", "3", "5"):
                 finite_number(row.get("mae_by_horizon_s", {}).get(horizon),
                               "Forecast MAE at {} s".format(horizon), 0)
+                finite_number(row.get("eeg_record_equal_mae_by_horizon_s", {}).get(horizon),
+                              "Forecast EEG-record MAE at {} s".format(horizon), 0)
+            method = data.get("methods", {}).get(row["name"])
+            need(isinstance(method, list) and {item.get("horizon_seconds") for item in method} == {1, 3, 5},
+                 "Forecast patient-equal horizon evidence missing")
+            for item in method:
+                finite_number(item.get("patient_macro_mae"), "Forecast patient-equal MAE", 0)
+                finite_number(item.get("eeg_record_equal_mae"), "Forecast record-equal MAE", 0)
+    return path, data
+
+
+def validate_ablation_weighted(bundle, ablation_path, ablation, split_hash, counts,
+                               dependencies):
+    """Bind three test-set weighting views to every frozen ablation arm."""
+    from scripts.supplement_ablation_metrics import supplement
+
+    path, data = formal_json(bundle["ablation_weighted_metrics"],
+                             "Weighted ablation metrics", dependencies)
+    need(data.get("schema_version") == "ode_ablation_weighted_metrics_v1" and
+         data.get("experiment_status") == "formal" and data.get("split") == "test" and
+         data.get("test_used_for_selection") is False,
+         "Weighted ablation evidence has wrong test protocol")
+    same_hash(data.get("split_hash"), split_hash, "Weighted ablation metrics")
+    need(data.get("ablation_summary_sha256") == digest(ablation_path) and
+         path_from(data.get("ablation_summary")) == ablation_path and
+         data.get("manifest_sha256") == ablation.get("manifest_sha256") and
+         data.get("plan_sha256") == ablation.get("plan_sha256") and
+         data.get("n_windows") == counts["test"][0] and
+         data.get("n_patients") == counts["test"][1],
+         "Weighted ablation source or full test coverage differs")
+    source_rows = {row["name"]: row for row in ablation["rows"]}
+    rows = data.get("rows")
+    need(isinstance(rows, list) and len(rows) == len(source_rows) == 3 and
+         all(isinstance(row, dict) for row in rows) and
+         {row.get("name") for row in rows} == set(source_rows),
+         "Weighted ablation must cover exactly the three frozen arms")
+    for row in rows:
+        source = source_rows[row["name"]]
+        need(row.get("predictions_sha256") == source["predictions_sha256"] and
+             row.get("metrics_sha256") == source["metrics_sha256"] and
+             path_from(row.get("predictions_file")) == path_from(source["predictions_file"]) and
+             path_from(row.get("metrics_file")) == path_from(source["metrics_file"]),
+             "Weighted ablation source hash differs: {}".format(row["name"]))
+        for unit in ("window_equal", "patient_equal", "eeg_record_equal"):
+            finite_number(row.get("aggregations", {}).get(unit, {}).get("kl_mean"),
+                          "{} {} KL".format(row["name"], unit), 0)
+    try:
+        with tempfile.TemporaryDirectory(prefix="formal-slides-ablation-weighted-") as temporary:
+            regenerated = supplement(ablation_path,
+                                     Path(temporary) / "ablation_weighted_metrics.json")
+    except (OSError, ValueError, KeyError) as exc:
+        raise EvidenceError("Weighted ablation evidence failed revalidation: {}".format(exc))
+    need(regenerated == data,
+         "Weighted ablation evidence differs from frozen test predictions")
     return path, data
 
 
@@ -463,12 +671,29 @@ def forecast_slide_scope(forecast, test_n, test_patients):
 
 
 def validate_ui(bundle, split_hash, dependencies):
+    from PIL import Image, UnidentifiedImageError
+
     ui_path, ui = formal_json(bundle["ui_capture"], "UI capture", dependencies)
     need(ui.get("experiment_status") == "formal", "UI capture is not formal")
     same_hash(ui.get("split_hash"), split_hash, "UI capture")
+    need(ui.get("formal_gate", {}).get("passed") is True and
+         ui.get("smoke_watermark_added") is False and
+         ui.get("page") == "ODE 动力学" and
+         type(ui.get("rendered_charts")) is int and ui["rendered_charts"] >= 3,
+         "UI capture lacks a rendered formal dynamics page")
     screenshot = path_from(ui.get("image"))
     need(screenshot.suffix.lower() == ".png", "UI screenshot must be PNG")
-    dependencies[relative(screenshot)] = digest(screenshot)
+    screenshot_sha = digest(screenshot)
+    need(ui.get("image_sha256") == screenshot_sha,
+         "UI screenshot differs from capture metadata")
+    try:
+        with Image.open(screenshot) as image:
+            need(image.format == "PNG" and image.width >= 900 and image.height >= 600,
+                 "UI screenshot has invalid geometry or format")
+            image.verify()
+    except (OSError, UnidentifiedImageError) as exc:
+        raise EvidenceError("Invalid UI screenshot {}: {}".format(screenshot, exc))
+    dependencies[relative(screenshot)] = screenshot_sha
     return ui_path, ui, screenshot
 
 
@@ -500,6 +725,151 @@ def render_panel(title, lines, output):
         ax.text(.05, .77 - i * (.68 / max(n, 1)), line, color="#f8fbfc",
                 fontsize=11 if n > 8 else 12, va="top", family="DejaVu Sans")
     fig.savefig(output, dpi=160, facecolor=fig.get_facecolor(), bbox_inches="tight", pad_inches=.1)
+    plt.close(fig)
+
+
+def classification_kl_chart_data(deep, spark_record):
+    """Use the fixed model order, never a test-result-driven ranking."""
+    names = ("tcn", "spectrogram_cnn", "fusion", "graph_gru",
+             "odebrain_inspired_hms", "lr", "rf")
+    labels = ("TCN", "CNN", "Fusion", "GraphGRU", "ODE", "Spark LR", "Spark RF")
+    values = []
+    for name in names:
+        row = deep[name][1] if name in deep else spark_record["models"][name]
+        values.append(tuple(row[field] for field in
+            ("kl_window_mean", "kl_patient_equal_mean", "kl_eeg_record_equal_mean")))
+    return labels, values
+
+
+def ablation_kl_chart_data(ablation_weighted):
+    labels = {"pretrained_rk4_025": "Pretrain · RK4 .25",
+              "scratch_rk4_025": "Scratch · RK4 .25",
+              "pretrained_rk4_050": "Pretrain · RK4 .50"}
+    rows = ablation_weighted["rows"]
+    return ([labels.get(row["name"], row["name"]) for row in rows],
+            [tuple(row["aggregations"][unit]["kl_mean"] for unit in
+                   ("window_equal", "patient_equal", "eeg_record_equal"))
+             for row in rows])
+
+
+def render_kl_chart(title, labels, values, output, note):
+    """Show window/patient/EEG-record KL without hiding the aggregation unit."""
+    import matplotlib
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+    import numpy as np
+
+    fig, ax = plt.subplots(figsize=(10, 5.2), dpi=200)
+    fig.patch.set_facecolor("#0b1d2e")
+    ax.set_facecolor("#122c41")
+    y = np.arange(len(labels), dtype=float)
+    palette = ("#21c5ae", "#f5bd6d", "#8ea9f4")
+    for column, (name, color) in enumerate(zip(("Window", "Patient", "EEG record"), palette)):
+        ax.barh(y + (column - 1) * .23, [row[column] for row in values],
+                height=.20, color=color, label=name)
+    ax.set_yticks(y)
+    ax.set_yticklabels(labels, color="#f8fbfc", fontsize=12)
+    ax.invert_yaxis()
+    ax.set_xlim(0, max(max(row) for row in values) * 1.12)
+    ax.set_xlabel("KL(target || prediction), lower is better", color="#f8fbfc", fontsize=11)
+    ax.tick_params(axis="x", colors="#b8d2dc", labelsize=10)
+    ax.grid(axis="x", color="#577080", alpha=.40)
+    ax.set_axisbelow(True)
+    for spine in ax.spines.values():
+        spine.set_visible(False)
+    fig.suptitle(title, x=.03, ha="left", color="#21c5ae", fontsize=17, weight="bold")
+    fig.legend(loc="upper right", bbox_to_anchor=(.96, .99), ncol=3,
+               facecolor="#122c41", edgecolor="none", labelcolor="#f8fbfc", fontsize=10)
+    fig.text(.03, .018, note, color="#b8d2dc", fontsize=9, va="bottom")
+    fig.subplots_adjust(left=.22, right=.96, top=.83, bottom=.18)
+    fig.savefig(output, facecolor=fig.get_facecolor(), pad_inches=0)
+    plt.close(fig)
+
+
+def render_forecast_chart(forecast, output):
+    import matplotlib
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+
+    fig, ax = plt.subplots(figsize=(10, 5.2), dpi=200)
+    fig.patch.set_facecolor("#0b1d2e")
+    ax.set_facecolor("#122c41")
+    names = {"odebrain_inspired_hms": "ODE", "graph_gru": "GraphGRU",
+             "persistence": "Persistence"}
+    colors = {"odebrain_inspired_hms": "#21c5ae", "graph_gru": "#8ea9f4",
+              "persistence": "#f5bd6d"}
+    for row in forecast["rows"]:
+        name = row["name"]
+        values = [row["mae_by_horizon_s"][str(h)] for h in (1, 3, 5)]
+        ax.plot((1, 3, 5), values, marker="o", markersize=8, linewidth=2.7,
+                color=colors[name], label=names[name])
+        ax.text(5.12, values[-1], "{:.3f}".format(values[-1]),
+                color=colors[name], fontsize=11, va="center")
+    ax.set_xlim(.6, 6.0)
+    ax.set_ylim(.55, max(row["mae_by_horizon_s"]["5"] for row in forecast["rows"]) * 1.10)
+    ax.set_xticks((1, 3, 5))
+    ax.set_xlabel("Forecast horizon (seconds)", color="#f8fbfc", fontsize=11)
+    ax.set_ylabel("Mean absolute error", color="#f8fbfc", fontsize=11)
+    ax.tick_params(colors="#b8d2dc", labelsize=10)
+    ax.grid(color="#577080", alpha=.40)
+    for spine in ax.spines.values():
+        spine.set_visible(False)
+    ax.legend(loc="upper left", facecolor="#122c41", edgecolor="none",
+              labelcolor="#f8fbfc", fontsize=10)
+    fig.suptitle("Future graph nodes · eligible test windows", x=.03,
+                 ha="left", color="#21c5ae", fontsize=17, weight="bold")
+    fig.text(.67, .77, "5 s MAE\nPatient / EEG record", color="#f8fbfc",
+             fontsize=11, weight="bold", va="top")
+    for index, name in enumerate(("odebrain_inspired_hms", "graph_gru", "persistence")):
+        metric = next(item for item in forecast["methods"][name]
+                      if item["horizon_seconds"] == 5)
+        fig.text(.67, .58 - index * .15,
+                 "{}\n{:.3f} / {:.3f}".format(names[name],
+                     metric["patient_macro_mae"], metric["eeg_record_equal_mae"]),
+                 color=colors[name], fontsize=11, va="top")
+    eligible = forecast["forecast_eligibility"]
+    fig.text(.03, .018, "Eligible {:,} / {:,} test windows; {:,} excluded. Raw-scale node MAE.".format(
+        eligible["eligible_test_windows"], eligible["original_test_windows"],
+        eligible["excluded_test_windows"]), color="#b8d2dc", fontsize=9, va="bottom")
+    fig.subplots_adjust(left=.10, right=.61, top=.82, bottom=.19)
+    fig.savefig(output, facecolor=fig.get_facecolor(), pad_inches=0)
+    plt.close(fig)
+
+
+def render_benchmark_chart(full_bench, output):
+    import matplotlib
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+
+    labels = ("Serial · 1", "Multiprocessing · 4", "Spark · 1", "Spark · 4")
+    keys = (("serial", 1), ("multiprocessing", 4), ("spark", 1), ("spark", 4))
+    values = [full_bench[key]["median_end_to_end_seconds"] for key in keys]
+    fig, ax = plt.subplots(figsize=(10, 5.2), dpi=200)
+    fig.patch.set_facecolor("#0b1d2e")
+    ax.set_facecolor("#122c41")
+    bars = ax.barh(range(4), values,
+                   color=("#8ea9f4", "#21c5ae", "#f5bd6d", "#d490ba"), height=.52)
+    ax.set_yticks(range(4))
+    ax.set_yticklabels(labels, color="#f8fbfc", fontsize=12)
+    ax.invert_yaxis()
+    ax.set_xlim(0, max(values) * 1.18)
+    ax.set_xlabel("Median end-to-end time (seconds), lower is better",
+                  color="#f8fbfc", fontsize=11)
+    ax.tick_params(axis="x", colors="#b8d2dc", labelsize=10)
+    ax.grid(axis="x", color="#577080", alpha=.40)
+    ax.set_axisbelow(True)
+    for spine in ax.spines.values():
+        spine.set_visible(False)
+    for bar, value in zip(bars, values):
+        ax.text(bar.get_width() + max(values) * .015,
+                bar.get_y() + bar.get_height() / 2, "{:.0f} s".format(value),
+                color="#f8fbfc", fontsize=11, va="center")
+    fig.suptitle("Spark batch processing · full data", x=.03,
+                 ha="left", color="#21c5ae", fontsize=17, weight="bold")
+    fig.text(.03, .018, "Single physical host · shared disk · observed runs; no multi-host claim",
+             color="#b8d2dc", fontsize=9, va="bottom")
+    fig.subplots_adjust(left=.25, right=.96, top=.83, bottom=.18)
+    fig.savefig(output, facecolor=fig.get_facecolor(), pad_inches=0)
     plt.close(fig)
 
 
@@ -551,9 +921,18 @@ def prepare(bundle_path, output_path, preview=False):
     manifest_path, audit_path, split_path, audit, split_hash, counts = validate_manifest(bundle, dependencies)
     feature_path, feature = validate_features(bundle, manifest_path, counts, dependencies)
     spark_path, spark = validate_spark_models(bundle, counts, dependencies)
+    spark_record_path, spark_record = validate_spark_record_metrics(
+        bundle, manifest_path, split_hash, counts, dependencies)
+    weighted_path, weighted = validate_weighted_classification(
+        bundle, manifest_path, split_hash, counts, dependencies)
     deep = validate_deep(bundle, manifest_path, split_hash, counts, dependencies)
+    paired_path, paired = validate_paired_refit(bundle, manifest_path, split_hash, counts, dependencies)
     bench_path, bench, bench_sum_path, bench_sum = validate_benchmark(bundle, counts, dependencies)
     ablation_path, ablation = validate_comparison(bundle, "ablation", split_hash, counts, dependencies)
+    ablation_weighted_path, ablation_weighted = validate_ablation_weighted(
+        bundle, ablation_path, ablation, split_hash, counts, dependencies)
+    disagreement_path, disagreement, disagreement_threshold = validate_disagreement(
+        bundle, manifest_path, split_hash, counts, dependencies)
     forecast_path, forecast = validate_comparison(bundle, "forecast_comparison", split_hash, counts, dependencies)
     dyn_path, dyn_index, dyn_cases = validate_dynamics(
         bundle, manifest_path, split_hash, counts, deep["odebrain_inspired_hms"][2], dependencies)
@@ -600,10 +979,20 @@ def prepare(bundle_path, output_path, preview=False):
         if extra:
             rows[str(page)].update(extra)
 
+    import pandas as pd
+    valid_classes = pd.read_csv(manifest_path, usecols=["split", "class_id"])
+    valid_classes = valid_classes.loc[valid_classes["split"].isin(("train", "val", "test"))]
+    class_counts = valid_classes["class_id"].value_counts().to_dict()
+    need(set(class_counts) == set(range(6)) and sum(class_counts.values()) == audit["valid_windows"],
+         "Class counts do not cover all audited valid windows")
     add(4, audit_path, ["Metadata rows: {:,}".format(audit["metadata_rows"]),
                         "EEG files: {:,}".format(audit["raw_eeg_files_found"]),
                         "Valid windows: {:,}".format(audit["valid_windows"]),
-                        "Patients: {:,}".format(audit["patient_count"])])
+                        "Patients: {:,}".format(audit["patient_count"]),
+                        "Unique annotated context: {:.1f} h".format(
+                            audit["unique_annotated_context_seconds"] / 3600),
+                        "Class 0/1/2: {:,} / {:,} / {:,}".format(*(class_counts[i] for i in (0, 1, 2))),
+                        "Class 3/4/5: {:,} / {:,} / {:,}".format(*(class_counts[i] for i in (3, 4, 5)))])
     add(5, split_path, ["Patient-disjoint audited split", *(
         "{}: {:,} windows / {:,} patients".format(name, *counts[name])
         for name in ("train", "val", "test")), "Split SHA256: {}".format(split_hash[:20])])
@@ -626,32 +1015,87 @@ def prepare(bundle_path, output_path, preview=False):
     add(13, deep["odebrain_inspired_hms"][0], ["Deep models: train+val fixed-epoch refit",
         "Epochs frozen from initial validation; no test selection",
         "Test: {:,} windows / {:,} patients".format(test_n, test_patients),
-        "KL(target || prediction), window mean", "Split SHA256: {}".format(split_hash[:20]),
+        "KL: window / patient / EEG-record equal means", "Split SHA256: {}".format(split_hash[:20]),
         "ODE checkpoint SHA256: {}".format(deep["odebrain_inspired_hms"][2][:20])],
         model=deep["odebrain_inspired_hms"][2][:16],
         extra={"headline_training_protocol": "train_val_fixed_epoch_refit"})
-    add(14, deep["odebrain_inspired_hms"][0], ["Final refit test KL, lower is better", *(
-        "{}: {:.4f}".format(name, deep[name][1]["kl_window_mean"]) for name in DEEP_MODELS),
-        "MLlib models (train only) LR: {:.4f} | RF: {:.4f}".format(*(
-            spark["models"][n]["splits"]["test"]["kl_window_mean"] for n in ("lr", "rf")))],
-        model=deep["odebrain_inspired_hms"][2][:16],
-        extra={"headline_training_protocol": "train_val_fixed_epoch_refit"})
-    add(15, ablation_path, ["Initial-run ablations; test KL lower is better", *(
-        "{}: {:.4f}".format(row["name"], row["kl_window_mean"]) for row in ablation["rows"][:7])],
-        model="initial_ablation_runs")
+    kl_chart_path = figure_dir / "slide_14.png"
+    kl_chart_labels, kl_chart_values = classification_kl_chart_data(deep, spark_record)
+    render_kl_chart("Classification · seven measured models", kl_chart_labels,
+                    kl_chart_values, kl_chart_path,
+                    "Deep models: train+val refit; Spark LR/RF: train only. Same held-out patient split.")
+    add(14, deep["odebrain_inspired_hms"][0], ["Final refit test KL: W / P / E, lower is better", *(
+        "{}: {:.3f} / {:.3f} / {:.3f}".format(
+            name, deep[name][1]["kl_window_mean"],
+            deep[name][1]["kl_patient_equal_mean"],
+            deep[name][1]["kl_eeg_record_equal_mean"]) for name in DEEP_MODELS),
+        "MLlib train-only W/P/E LR: {:.3f}/{:.3f}/{:.3f}".format(*(
+            spark_record["models"]["lr"][field] for field in
+            ("kl_window_mean", "kl_patient_equal_mean", "kl_eeg_record_equal_mean"))),
+        "MLlib train-only W/P/E RF: {:.3f}/{:.3f}/{:.3f}".format(*(
+            spark_record["models"]["rf"][field] for field in
+            ("kl_window_mean", "kl_patient_equal_mean", "kl_eeg_record_equal_mean"))),
+        "ODE macro F1 W/P/E: {:.3f}/{:.3f}/{:.3f}".format(*(
+            weighted["models"]["odebrain_inspired_hms"]["aggregations"][unit]["macro_f1"]
+            for unit in ("window_equal", "patient_equal", "eeg_record_equal")))],
+        original_image=kl_chart_path, model=deep["odebrain_inspired_hms"][2][:16],
+        extra={"headline_training_protocol": "train_val_fixed_epoch_refit",
+               "spark_record_metrics_source": relative(spark_record_path),
+               "spark_record_metrics_sha256": dependencies[relative(spark_record_path)],
+               "weighted_metrics_source": relative(weighted_path),
+               "weighted_metrics_sha256": dependencies[relative(weighted_path)]})
+    disagreement_rows = disagreement["metrics"]
+    ablation_chart_path = figure_dir / "slide_15.png"
+    ablation_labels, ablation_values = ablation_kl_chart_data(ablation_weighted)
+    render_kl_chart("Ablation · frozen train-only runs",
+                    ablation_labels, ablation_values,
+                    ablation_chart_path,
+                    "Validation entropy threshold {:.3f} nats; ODE KL low/high {:.3f}/{:.3f}. Initial-run protocol.".format(
+                        disagreement_threshold,
+                        disagreement_rows["odebrain_inspired_hms"]["low"]["kl_window_mean"],
+                        disagreement_rows["odebrain_inspired_hms"]["high"]["kl_window_mean"]))
+    add(15, disagreement_path, ["Initial-run only: ablation and expert disagreement",
+        "Ablation KL W/P/E, separate protocol from refit:", *(
+        "{}: {:.3f} / {:.3f} / {:.3f}".format(row["name"], *(
+            row["aggregations"][unit]["kl_mean"] for unit in
+            ("window_equal", "patient_equal", "eeg_record_equal")))
+        for row in ablation_weighted["rows"]),
+        "Entropy threshold from validation: {:.3f} nats".format(disagreement_threshold),
+        "Low/high test windows: {:,} / {:,}".format(
+            disagreement_rows["tcn"]["low"]["n_windows"],
+            disagreement_rows["tcn"]["high"]["n_windows"]),
+        "ODE KL low/high: {:.3f} / {:.3f}".format(
+            disagreement_rows["odebrain_inspired_hms"]["low"]["kl_window_mean"],
+            disagreement_rows["odebrain_inspired_hms"]["high"]["kl_window_mean"])],
+        original_image=ablation_chart_path,
+        model="initial_ablation_runs", extra={"ablation_source": relative(ablation_path),
+        "ablation_source_sha256": dependencies[relative(ablation_path)],
+        "ablation_weighted_source": relative(ablation_weighted_path),
+        "ablation_weighted_sha256": dependencies[relative(ablation_weighted_path)],
+        "disagreement_scope": "initial_train_only_models"})
     forecast_scope = forecast_slide_scope(forecast, test_n, test_patients)
     forecast_protocol = forecast.get("training_protocol")
     need(forecast_protocol in ("validation_selected_train_only", "train_val_fixed_epoch_refit"),
          "Forecast training protocol is missing or unknown")
     forecast_phase = ("Final-refit" if forecast_protocol == "train_val_fixed_epoch_refit"
                       else "Initial-run")
+    forecast_5s = {name: next(item for item in forecast["methods"][name]
+                              if item["horizon_seconds"] == 5)
+                   for name in ("odebrain_inspired_hms", "graph_gru", "persistence")}
+    forecast_chart_path = figure_dir / "slide_16.png"
+    render_forecast_chart(forecast, forecast_chart_path)
     add(16, forecast_path, [forecast_phase + " future-node MAE; eligible test set",
         "Eligible {:,}/{:,}; excluded {:,} for invalid input/target".format(
             forecast["forecast_eligibility"]["eligible_test_windows"], test_n,
             forecast["forecast_eligibility"]["excluded_test_windows"]), *(
         "{}: 1s {:.3f} | 3s {:.3f} | 5s {:.3f}".format(
             row["name"], *(row["mae_by_horizon_s"][h] for h in ("1", "3", "5")))
-        for row in forecast["rows"][:6])], model=forecast_protocol,
+        for row in forecast["rows"][:6]), *(
+        "{} 5s P/E: {:.3f} / {:.3f}".format(name,
+            forecast_5s[name]["patient_macro_mae"],
+            forecast_5s[name]["eeg_record_equal_mae"])
+        for name in ("odebrain_inspired_hms", "graph_gru", "persistence"))],
+        original_image=forecast_chart_path, model=forecast_protocol,
         window_count=forecast_scope["n_windows"],
         patient_count=forecast_scope["n_patients"],
         extra={key: value for key, value in forecast_scope.items()
@@ -667,20 +1111,36 @@ def prepare(bundle_path, output_path, preview=False):
                    "plotted_case_count": 2,
                    "figure_types": [left_name, right_name],
                    "selection_scope": "selected formal test cases"})
-    full_spark = [r for r in bench_sum if r.get("subset") == "subset_100" and r.get("method") == "spark"]
-    full_serial = [r for r in bench_sum if r.get("subset") == "subset_100" and r.get("method") == "serial"]
-    need(full_serial and full_spark, "Benchmark summary needs full serial and Spark timings")
-    add(20, bench_sum_path, ["Full-data end-to-end median", "Serial: {:.1f} s".format(
-        full_serial[0]["median_end_to_end_seconds"]), "Spark: {:.1f} s".format(
-        full_spark[0]["median_end_to_end_seconds"]), "Physical hosts: 1",
-        "Do not infer multi-node scalability"])
+    full_bench = {(r.get("method"), r.get("workers")): r for r in bench_sum
+                  if r.get("subset") == "subset_100"}
+    need(all(key in full_bench for key in (("serial", 1), ("multiprocessing", 4),
+                                        ("spark", 1), ("spark", 4))),
+         "Benchmark summary needs serial-1, multiprocessing-4, Spark-1 and Spark-4")
+    benchmark_chart_path = figure_dir / "slide_20.png"
+    render_benchmark_chart(full_bench, benchmark_chart_path)
+    add(20, bench_sum_path, ["Full-data end-to-end median", *(
+        "{} ({} workers): {:.1f} s".format(label, workers,
+             full_bench[(method, workers)]["median_end_to_end_seconds"])
+        for method, workers, label in (("serial", 1, "Serial"),
+                                       ("multiprocessing", 4, "Multiprocessing"),
+                                       ("spark", 1, "Spark"), ("spark", 4, "Spark"))),
+        "Physical hosts: 1",
+        "Do not infer multi-node scalability"], original_image=benchmark_chart_path)
     add(21, ui_path, original_image=screenshot, model=deep["odebrain_inspired_hms"][2][:16])
-    add(22, deep["odebrain_inspired_hms"][0], ["Final refit test evidence", "Models: 2 Spark + 5 deep",
+    ode_gru = paired["comparisons"]["ode_minus_graph_gru"]
+    add(22, deep["odebrain_inspired_hms"][0], ["Final refit; 2 MLlib classifiers + 5 deep models",
         "Test: {:,} windows / {:,} patients".format(test_n, test_patients),
-        "ODE KL: {:.4f}".format(deep["odebrain_inspired_hms"][1]["kl_window_mean"]),
+        "ODE minus GraphGRU KL; positive = ODE higher",
+        "Patient equal: {:+.3f} | 95% [{:+.3f}, {:+.3f}]".format(
+            ode_gru["patient_equal"]["difference"], *ode_gru["patient_equal"]["ci95"]),
+        "EEG-record equal: {:+.3f} | 95% [{:+.3f}, {:+.3f}]".format(
+            ode_gru["eeg_record_equal"]["difference"], *ode_gru["eeg_record_equal"]["ci95"]),
+        "Paired patient bootstrap; descriptive only",
         "Observed dynamics cases: {}".format(len(dyn_index["cases"]))],
         model=deep["odebrain_inspired_hms"][2][:16],
-        extra={"headline_training_protocol": "train_val_fixed_epoch_refit"})
+        extra={"headline_training_protocol": "train_val_fixed_epoch_refit",
+               "paired_refit_source": relative(paired_path),
+               "paired_refit_sha256": dependencies[relative(paired_path)]})
     if preview:
         add(23, bundle_path, ["Local preview; pending publication review",
             "Project repository: unpublished", "Model weights: unpublished",

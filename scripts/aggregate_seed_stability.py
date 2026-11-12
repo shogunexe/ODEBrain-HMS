@@ -9,7 +9,8 @@ from refit_final import CLASSIFIERS, _check_final_run, summarize_refits
 from src.cli import file_sha256
 
 ROOT = Path(__file__).resolve().parents[1]
-METRICS = ("kl_window_mean", "kl_patient_equal_mean", "macro_f1")
+METRICS = ("kl_window_mean", "kl_patient_equal_mean",
+           "kl_eeg_record_equal_mean", "macro_f1")
 
 
 def aggregate(seeds=(42, 43, 44), output=ROOT / "results/seed_stability/summary.json"):
@@ -33,7 +34,8 @@ def aggregate(seeds=(42, 43, 44), output=ROOT / "results/seed_stability/summary.
         summarize_refits(run_dirs, comparison_path, results_root)
         comparison = json.loads(comparison_path.read_text(encoding="utf-8"))
         identity = (comparison["split_hash"], comparison["manifest_sha256"],
-                    comparison["n_windows"], comparison["n_patients"])
+                    comparison["n_windows"], comparison["n_patients"],
+                    comparison["n_eeg_records"])
         if shared is None:
             shared = identity
         elif identity != shared:
@@ -51,6 +53,8 @@ def aggregate(seeds=(42, 43, 44), output=ROOT / "results/seed_stability/summary.
                              "values_by_seed": {str(seed): value for seed, value in zip(seeds, values)}}
         for seed in seeds:
             row = records[seed]["rows"][name]
+            if row["n_eeg_records"] != shared[4]:
+                raise ValueError("Seed repeats changed EEG record coverage")
             model["per_seed"][str(seed)] = {
                 "checkpoint_sha256": row["checkpoint_sha256"],
                 "test_metrics_sha256": row["test_metrics_sha256"],
@@ -70,6 +74,7 @@ def aggregate(seeds=(42, 43, 44), output=ROOT / "results/seed_stability/summary.
         "seeds": list(seeds), "n_seeds": len(seeds),
         "split_hash": shared[0], "manifest_sha256": shared[1],
         "n_windows": shared[2], "n_patients": shared[3],
+        "n_eeg_records": shared[4],
         "comparisons": {str(seed): {"path": record["comparison"],
                                       "sha256": record["sha256"]}
                         for seed, record in records.items()},

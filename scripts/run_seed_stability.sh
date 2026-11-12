@@ -12,13 +12,16 @@ if [[ ! "$seed" =~ ^[0-9]+$ ]] || [[ "$seed" == 42 ]] || [[ ! "$device" =~ ^[0-9
   exit 2
 fi
 cd "$(dirname "$0")/.."
-export LD_LIBRARY_PATH="/export/usr/python/3.8.9/lib:${LD_LIBRARY_PATH:-}"
+if [[ -d /export/usr/python/3.8.9/lib ]]; then
+  export LD_LIBRARY_PATH="/export/usr/python/3.8.9/lib:${LD_LIBRARY_PATH:-}"
+fi
 export CUDA_VISIBLE_DEVICES="$device"
 export OPENBLAS_NUM_THREADS=1
 export OMP_NUM_THREADS=4
 export MKL_NUM_THREADS=4
 export PYTHONUNBUFFERED=1
-python_bin="$PWD/.venv/bin/python"
+python_bin="${PYTHON:-$PWD/.venv/bin/python}"
+[[ -x "$python_bin" ]] || { echo "Missing project Python: $python_bin" >&2; exit 2; }
 root="$PWD/artifacts/seed_stability/seed${seed}"
 results="$PWD/results/seed_stability/seed${seed}"
 mkdir -p "$root" "$results"

@@ -1,6 +1,6 @@
 {
   "schema_version": "hms_forecast_comparison_v2",
-  "generated_utc": "2026-11-10T05:58:22.790658+00:00",
+  "generated_utc": "2026-11-11T14:32:19.572150+00:00",
   "experiment_status": "formal",
   "training_protocol": "train_val_fixed_epoch_refit",
   "smoke_subset": false,
@@ -13,8 +13,10 @@
   "patient_count": 387,
   "n_windows": 22606,
   "n_patients": 387,
+  "n_eeg_records": 3922,
   "window_ids_sha256": "ecc2dbde3a38fe097c10ed43070cb85ead97fe3ae67d8f917f3fe8a0e129e675",
   "patient_ids_sha256": "53e7073e80b83e1b28b22e5abb1c1fe8a9573c7acc630f8d30c4112c5bdfaa55",
+  "eeg_record_ids_sha256": "91f00f7aa6dca93e99ed018999e9f61e8fef9cf43993b4095f802f6dab957c07",
   "forecast_eligibility": {
     "original_test_windows": 22638,
     "eligible_test_windows": 22606,
@@ -36,52 +38,65 @@
   ],
   "target": "future electrode-node log1p band-power attributes",
   "mae_units": "log1p_band_power",
+  "eeg_record_equal_mae_definition": "mean valid node-feature absolute error within each eeg_id, then unweighted mean across eeg_id",
   "validity_rule": "future node valid AND node observed at least once before cut; each of five features counted",
   "methods": {
     "odebrain_inspired_hms": [
       {
         "horizon_seconds": 1,
-        "mae": 0.6564709715839854,
-        "patient_macro_mae": 0.6826108089727736,
+        "mae": 0.6564708800511115,
+        "patient_macro_mae": 0.6826107069326971,
+        "eeg_record_equal_mae": 0.6879307605222771,
         "valid_node_feature_values": 2147570,
-        "patients_with_valid_target": 387
+        "patients_with_valid_target": 387,
+        "eeg_records_with_valid_target": 3922
       },
       {
         "horizon_seconds": 3,
-        "mae": 0.6832688032602438,
-        "patient_macro_mae": 0.7225706451702589,
+        "mae": 0.6832686883849555,
+        "patient_macro_mae": 0.722570547386541,
+        "eeg_record_equal_mae": 0.7202587376006439,
         "valid_node_feature_values": 2147570,
-        "patients_with_valid_target": 387
+        "patients_with_valid_target": 387,
+        "eeg_records_with_valid_target": 3922
       },
       {
         "horizon_seconds": 5,
-        "mae": 0.7031172694891261,
-        "patient_macro_mae": 0.7526184956577362,
+        "mae": 0.7031171602184697,
+        "patient_macro_mae": 0.7526184290051482,
+        "eeg_record_equal_mae": 0.7416313900223069,
         "valid_node_feature_values": 2147570,
-        "patients_with_valid_target": 387
+        "patients_with_valid_target": 387,
+        "eeg_records_with_valid_target": 3922
       }
     ],
     "graph_gru": [
       {
         "horizon_seconds": 1,
-        "mae": 0.6414929298373452,
-        "patient_macro_mae": 0.6634639002404416,
+        "mae": 0.6414929299253067,
+        "patient_macro_mae": 0.6634639010878833,
+        "eeg_record_equal_mae": 0.66997133345219,
         "valid_node_feature_values": 2147570,
-        "patients_with_valid_target": 387
+        "patients_with_valid_target": 387,
+        "eeg_records_with_valid_target": 3922
       },
       {
         "horizon_seconds": 3,
-        "mae": 0.6708698387463325,
-        "patient_macro_mae": 0.7089433784119014,
+        "mae": 0.6708698394879723,
+        "patient_macro_mae": 0.708943380741679,
+        "eeg_record_equal_mae": 0.7110931013603453,
         "valid_node_feature_values": 2147570,
-        "patients_with_valid_target": 387
+        "patients_with_valid_target": 387,
+        "eeg_records_with_valid_target": 3922
       },
       {
         "horizon_seconds": 5,
-        "mae": 0.6884601178801709,
-        "patient_macro_mae": 0.7432314877364387,
+        "mae": 0.6884601186183286,
+        "patient_macro_mae": 0.7432314888377194,
+        "eeg_record_equal_mae": 0.7305311565078805,
         "valid_node_feature_values": 2147570,
-        "patients_with_valid_target": 387
+        "patients_with_valid_target": 387,
+        "eeg_records_with_valid_target": 3922
       }
     ],
     "persistence": [
@@ -89,22 +104,28 @@
         "horizon_seconds": 1,
         "mae": 0.7829704218923194,
         "patient_macro_mae": 0.7925204188944543,
+        "eeg_record_equal_mae": 0.8069112318834415,
         "valid_node_feature_values": 2147570,
-        "patients_with_valid_target": 387
+        "patients_with_valid_target": 387,
+        "eeg_records_with_valid_target": 3922
       },
       {
         "horizon_seconds": 3,
         "mae": 0.8136800134236003,
         "patient_macro_mae": 0.8629045282350263,
+        "eeg_record_equal_mae": 0.8627542435472019,
         "valid_node_feature_values": 2147570,
-        "patients_with_valid_target": 387
+        "patients_with_valid_target": 387,
+        "eeg_records_with_valid_target": 3922
       },
       {
         "horizon_seconds": 5,
         "mae": 0.8437765355997285,
         "patient_macro_mae": 0.9043842689049028,
+        "eeg_record_equal_mae": 0.8873363462654306,
         "valid_node_feature_values": 2147570,
-        "patients_with_valid_target": 387
+        "patients_with_valid_target": 387,
+        "eeg_records_with_valid_target": 3922
       }
     ]
   },
@@ -112,17 +133,27 @@
     {
       "name": "odebrain_inspired_hms",
       "mae_by_horizon_s": {
-        "1": 0.6564709715839854,
-        "3": 0.6832688032602438,
-        "5": 0.7031172694891261
+        "1": 0.6564708800511115,
+        "3": 0.6832686883849555,
+        "5": 0.7031171602184697
+      },
+      "eeg_record_equal_mae_by_horizon_s": {
+        "1": 0.6879307605222771,
+        "3": 0.7202587376006439,
+        "5": 0.7416313900223069
       }
     },
     {
       "name": "graph_gru",
       "mae_by_horizon_s": {
-        "1": 0.6414929298373452,
-        "3": 0.6708698387463325,
-        "5": 0.6884601178801709
+        "1": 0.6414929299253067,
+        "3": 0.6708698394879723,
+        "5": 0.6884601186183286
+      },
+      "eeg_record_equal_mae_by_horizon_s": {
+        "1": 0.66997133345219,
+        "3": 0.7110931013603453,
+        "5": 0.7305311565078805
       }
     },
     {
@@ -131,6 +162,11 @@
         "1": 0.7829704218923194,
         "3": 0.8136800134236003,
         "5": 0.8437765355997285
+      },
+      "eeg_record_equal_mae_by_horizon_s": {
+        "1": 0.8069112318834415,
+        "3": 0.8627542435472019,
+        "5": 0.8873363462654306
       }
     }
   ],

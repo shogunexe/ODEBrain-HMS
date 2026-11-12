@@ -195,6 +195,8 @@ def _check_manifest(manifest_path, split):
     selected = table.loc[(table.split == split) & (table.audit_reason == "ok")]
     if selected.empty:
         raise ValueError("Evaluation split has no audited windows")
+    if selected.eeg_id.isna().any() or selected.eeg_id.astype(str).eq("").any():
+        raise ValueError("Evaluation windows lack EEG recording IDs")
     train_patients = set(table.loc[table.split == "train", "patient_id"].astype(str))
     val_patients = set(table.loc[table.split == "val", "patient_id"].astype(str))
     test_patients = set(table.loc[table.split == "test", "patient_id"].astype(str))
@@ -259,12 +261,19 @@ class ErrorAccumulator:
         self.patient_sums = {name: defaultdict(lambda: np.zeros(len(horizons), dtype=np.float64))
                              for name in METHODS}
         self.patient_counts = defaultdict(lambda: np.zeros(len(horizons), dtype=np.int64))
+        self.eeg_sums = {name: defaultdict(lambda: np.zeros(len(horizons), dtype=np.float64))
+                         for name in METHODS}
+        self.eeg_counts = defaultdict(lambda: np.zeros(len(horizons), dtype=np.int64))
 
-    def add(self, predictions, target, future_mask, observed_mask, patient_ids, mean, std):
+    def add(self, predictions, target, future_mask, observed_mask,
+            patient_ids, eeg_ids, mean, std):
         if target.ndim != 4 or future_mask.shape != target.shape[:3] or observed_mask.ndim != 3:
             raise ValueError("Forecast target and mask shape mismatch")
-        if target.shape[1] != len(self.horizons) or target.shape[0] != len(patient_ids):
-            raise ValueError("Forecast horizon or patient count mismatch")
+        if (target.shape[1] != len(self.horizons) or
+                target.shape[0] != len(patient_ids) or target.shape[0] != len(eeg_ids)):
+            raise ValueError("Forecast horizon, patient or EEG record count mismatch")
+        if any(not str(eeg_id) for eeg_id in eeg_ids):
+            raise ValueError("Forecast EEG record ID is empty")
         valid_nodes = observed_mask.any(dim=1)
         valid = future_mask.bool() & valid_nodes.unsqueeze(1)
         valid = valid.unsqueeze(-1).expand_as(target)
@@ -280,16 +289,18 @@ class ErrorAccumulator:
         errors = {name: (prediction - target).abs() * scale for name, prediction in predictions.items()}
         for horizon_index in range(len(self.horizons)):
             mask = valid[:, horizon_index]
-            for i, patient in enumerate(patient_ids):
+            for i, (patient, eeg_id) in enumerate(zip(patient_ids, eeg_ids)):
                 count = int(mask[i].sum().item())
                 if count == 0:
                     continue
                 self.counts[horizon_index] += count
                 self.patient_counts[str(patient)][horizon_index] += count
+                self.eeg_counts[str(eeg_id)][horizon_index] += count
                 for name, error in errors.items():
                     value = float(error[i, horizon_index].masked_select(mask[i]).double().sum().item())
                     self.sums[name][horizon_index] += value
                     self.patient_sums[name][str(patient)][horizon_index] += value
+                    self.eeg_sums[name][str(eeg_id)][horizon_index] += value
 
     def result(self):
         if (self.counts == 0).any():
@@ -301,11 +312,16 @@ class ErrorAccumulator:
                 per_patient = [sums[index] / self.patient_counts[patient][index]
                                for patient, sums in self.patient_sums[name].items()
                                if self.patient_counts[patient][index] > 0]
+                per_eeg = [sums[index] / self.eeg_counts[eeg_id][index]
+                           for eeg_id, sums in self.eeg_sums[name].items()
+                           if self.eeg_counts[eeg_id][index] > 0]
                 rows.append({"horizon_seconds": seconds,
                              "mae": float(self.sums[name][index] / self.counts[index]),
                              "patient_macro_mae": float(np.mean(per_patient)),
+                             "eeg_record_equal_mae": float(np.mean(per_eeg)),
                              "valid_node_feature_values": int(self.counts[index]),
-                             "patients_with_valid_target": len(per_patient)})
+                             "patients_with_valid_target": len(per_patient),
+                             "eeg_records_with_valid_target": len(per_eeg)})
             output[name] = rows
         return output
 
@@ -314,7 +330,10 @@ def _comparison_rows(methods):
     """Compact rows consumed by the formal slide evidence gate."""
     return [{"name": name,
              "mae_by_horizon_s": {str(row["horizon_seconds"]): row["mae"]
-                                  for row in methods[name]}}
+                                  for row in methods[name]},
+             "eeg_record_equal_mae_by_horizon_s": {
+                 str(row["horizon_seconds"]): row["eeg_record_equal_mae"]
+                 for row in methods[name]}}
             for name in METHODS]
 
 
@@ -397,6 +416,7 @@ def evaluate_forecast(ode_run_dir, gru_run_dir, manifest_path, output_path,
             "eligible_window_ids_sha256": expected["eligible_window_ids_sha256"],
             "cache_index_sha256": file_sha256(Path(cache) / "index.json"),
         }
+    eeg_by_window = dict(zip(selected.window_id.astype(str), selected.eeg_id.astype(str)))
     loader = DataLoader(dataset, batch_size=batch_size, shuffle=False,
                         num_workers=workers, collate_fn=hms_collate)
     torch_device = torch.device(device)
@@ -405,6 +425,7 @@ def evaluate_forecast(ode_run_dir, gru_run_dir, manifest_path, output_path,
     errors = ErrorAccumulator(HORIZONS)
     seen_windows = []
     seen_patients = []
+    seen_eeg_ids = []
     with torch.no_grad():
         for batch in loader:
             history = _history_only(batch, torch_device, cut, HORIZONS)
@@ -422,10 +443,15 @@ def evaluate_forecast(ode_run_dir, gru_run_dir, manifest_path, output_path,
                 if name == "odebrain_inspired_hms" and tuple(float(x) for x in extra["times_s"].tolist()) != (0.0,) + tuple(HORIZONS):
                     raise ValueError("ODE trajectory times differ from target times")
                 predictions[name] = prediction
+            batch_windows = [str(x) for x in batch["window_id"]]
+            if any(window_id not in eeg_by_window for window_id in batch_windows):
+                raise ValueError("Forecast batch has a window absent from the evaluated manifest")
+            batch_eeg_ids = [eeg_by_window[window_id] for window_id in batch_windows]
             errors.add(predictions, target, future_mask, history["graph_mask"],
-                       batch["patient_id"], ode["mean"], ode["std"])
-            seen_windows.extend(str(x) for x in batch["window_id"])
+                       batch["patient_id"], batch_eeg_ids, ode["mean"], ode["std"])
+            seen_windows.extend(batch_windows)
             seen_patients.extend(str(x) for x in batch["patient_id"])
+            seen_eeg_ids.extend(batch_eeg_ids)
     if len(seen_windows) != len(selected) or set(seen_windows) != set(selected.window_id.astype(str)):
         raise ValueError("Forecast evaluation did not cover the selected split exactly")
     if not smoke and (len(seen_windows) != eligibility["eligible_test_windows"] or
@@ -452,13 +478,16 @@ def evaluate_forecast(ode_run_dir, gru_run_dir, manifest_path, output_path,
         "patient_count": len(set(seen_patients)),
         "n_windows": len(seen_windows),
         "n_patients": len(set(seen_patients)),
+        "n_eeg_records": len(set(seen_eeg_ids)),
         "window_ids_sha256": _canonical_hash(seen_windows),
         "patient_ids_sha256": _canonical_hash(set(seen_patients)),
+        "eeg_record_ids_sha256": _canonical_hash(set(seen_eeg_ids)),
         "forecast_eligibility": eligibility,
         "forecast_cut_seconds": cut,
         "horizons_seconds": list(HORIZONS),
         "target": "future electrode-node log1p band-power attributes",
         "mae_units": "log1p_band_power",
+        "eeg_record_equal_mae_definition": "mean valid node-feature absolute error within each eeg_id, then unweighted mean across eeg_id",
         "validity_rule": "future node valid AND node observed at least once before cut; each of five features counted",
         "methods": methods,
         "rows": _comparison_rows(methods),

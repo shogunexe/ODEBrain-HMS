@@ -50,10 +50,14 @@ LD_LIBRARY_PATH=/export/usr/python/3.8.9/lib:${LD_LIBRARY_PATH:-} \
   "split_summary": "data/curated/split_manifest.json",
   "feature_summary": "data/features/eeg_features_v1_summary.json",
   "spark_metrics": "results/spark_baselines/metrics.json",
+  "spark_record_metrics": "results/spark_baselines/eeg_record_equal_kl.json",
+  "classification_weighted_metrics": "results/classification_weighted_metrics.json",
   "refit_comparison": "results/refit/final_comparison.json",
+  "paired_refit_ci": "results/refit/paired_kl_intervals.json",
   "benchmark_runs": "results/spark_benchmark/runs.json",
   "benchmark_summary": "results/spark_benchmark/summary.json",
   "ablation": "results/ablation.json",
+  "disagreement_analysis": "results/disagreement_analysis.json",
   "forecast_comparison": "results/refit/forecast_comparison.json",
   "dynamics_index": "results/dynamics_refit/result_index.json",
   "ui_capture": "results/formal_ui_capture.json",
@@ -75,14 +79,17 @@ scripts/export_slides_pdf.sh "$PWD/slides/ODEBrain_LOCAL_PREVIEW_pending_publica
 
 实际审计与特征汇总路径以运行命令输出为准。预测图缓存使用 `data/training/graph_forecast_v2` 的逐窗口 eligibility 与按 split 汇总；旧 v1 缓存不作正式证据。分类主表只读取 `results/refit/final_comparison.json`：五个深度模型均在 train+val 上按初训验证选出的固定轮数重训，随后对同一完整测试集评估。准备器调用 refit 汇总器重新核对源初训、最终 `final.pt`、逐窗口预测、指标、患者与窗口全集，并要求正式动力学索引的 checkpoint 哈希等于 refit ODE 的 `final.pt`。初训 `best.pt` 的测试指标不得混入分类主表。逻辑回归和随机森林是使用 Spark MLlib 在人工特征上训练的传统模型，均只用训练集拟合；Spark 本身负责数据处理而不是分类模型。消融仍是初训协议，第 15 页会标注；第 16 页预测对照按其实际 `training_protocol` 标注初训或最终重训，当前交付输入使用最终重训结果。图预测比较须核对原分类测试窗口数、预测 eligible/excluded 数、原因计数、eligible ID 哈希和 v2 缓存索引哈希；`n_windows` 是预测 eligible 子集数量。任何嵌套的 smoke 或 synthetic 标记均使生成失败。第 4、5、7、8、9、13–23 页的 PNG 在 `results/figures/formal_slides/` 生成，最后才写 `results/slides_evidence.json`，记录原始输入与 PNG 的 SHA256。正式图全部基于实测输入；动力学图和界面图复制经过校验的 PNG。
 
-以下四个补充输入尚需由正式实验与实际发布取得，不能由 smoke 案例拼凑：
+第 15 页同时读取初训专家分歧分析，其分层阈值来自验证集；初训消融、初训分歧分析和最终重训主表的数值不能直接相减。分类结果展示窗口平均、患者等权和 EEG 记录等权 KL。图预测 MAE 是本项目辅助指标；标准化 MAE/MSE 与逐频带误差不是 Kaggle 六分类任务要求。完整 ODE 推理成本结论不在本次交付范围。
+
+补充输入的状态以 `docs/status.md` 为准。最终重训图预测 `forecast_comparison.json` 已生成；`ablation.json` 等待第三条训练臂及三臂完整测试；正式截图在消融和 EEG 记录等权补算后采集；`formal_resources.json` 在仓库及权重附件公开并核对 URL 后写入。任何一项都不能由 smoke 案例拼凑：
 
 ```text
 ablation.json:
   experiment_status="formal", split="test", split_hash=<manifest hash>,
   n_windows=<完整测试窗口>, n_patients=<测试患者>,
   rows=[{"name": <真实模型运行>, "kl_window_mean": <实测值>}, ...]
-  至少两项，每项均须从独立运行的同一测试划分预测计算。
+  三条预注册臂，每项均须从独立运行的同一测试划分预测计算；
+  ablation_weighted_metrics.json 再从冻结 CSV 补算窗口、患者、EEG 记录等权指标。
 
 forecast_comparison.json:
   experiment_status="formal", split="test", split_hash=<manifest hash>,
@@ -109,7 +116,7 @@ formal_resources.json:
            "verified_at": <实际核对时间>}
 ```
 
-准备器只校验这些补充 JSON 的结构、有限数值与哈希。消融和未来图预测指标仍须人工与原始预测逐项核对；资源的 HTTP 状态须由实际访问核实。准备器不运行实验、不下载数据、不导出 PDF。
+准备器核对结构、有限数值、文件哈希、测试覆盖和冻结预测来源，并对消融、最终分类及预测证据执行相应的复算门禁。实际公开资源的 HTTP 状态须在生成 `formal_resources.json` 前核实；准备器不运行实验、不下载数据、不导出 PDF。预览 PDF 仍需人工逐页检查文字、图表和数值。
 
 正式稿生成命令为 `python3 scripts/build_slides.py --final`。该命令读取 `results/slides_evidence.json`：顶层须有 `experiment_status: "formal"`、统一的 `split_hash` 和经哈希绑定的 refit 主表；第 4、5、7、8、9、13–23 页逐页须有 `image`、`source_file`、对应的 `image_sha256` 与 `source_sha256`、同一个 `split_hash`、正整数 `n_patients`/`n_windows`、`model_version`、`experiment_status: "formal"` 和 `smoke_subset: false`。第 9、13、14、22 页还须绑定同一个 refit 主表及 `train_val_fixed_epoch_refit` 协议。文件须位于项目内且哈希匹配；JSON 来源文件若自报 smoke 状态会被拒绝。缺项时命令报错，不生成正式稿。
 

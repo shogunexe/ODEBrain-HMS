@@ -61,8 +61,12 @@ export PYSPARK_PYTHON="$PWD/.venv/bin/python"
 
 `scripts/reproduce.sh smoke` 执行合成接口测试并在真实数据已到位时跑小样本闭环；`full` 运行正式阶段入口。合成 smoke 不输出正式研究指标。
 
+初训、Spark 基线与性能实验完成后，运行 `scripts/reproduce_final_local.sh` 可按依赖顺序复核或恢复七个 train+val 重训、三条消融、42/44/45 种子汇总、全部补充指标、模型卡、动力学案例，并生成正式界面截图与带“待发布”标识的本地预览 PPTX/PDF。缺少 seed 44/45 的机器可运行 `scripts/reproduce_final_local.sh --run-seeds 0`，其中 `0` 是可用 GPU 编号；也可先分别运行 `scripts/run_seed_stability.sh 44 0` 和 `scripts/run_seed_stability.sh 45 0`。用 `FINAL_DEVICE=cpu`、`FINAL_WORKERS=0` 可在无 GPU 环境执行其余步骤，但训练时间会显著增加。该入口要求完整 Kaggle 数据与初训结果，不发布仓库或权重；`scripts/export_slides_pdf.sh` 还需按 [导出验证](docs/pdf_export.md) 安装本地 LibreOffice 与中文字体。
+
 ## 结果与资源
 
 正式结果写入 `results/`，初训模型及归一化参数写入 `artifacts/runs/`，完整开发集重训写入 `artifacts/refit/`。静态图写入 `results/figures/`。每份权重须与配置、通道顺序、划分哈希和预处理版本一起使用。最终五模型主表是 [完整开发集重训结果](results/refit/final_comparison.json)；初训测试结果仅作探索性对照。最终模型卡见 `docs/model_cards_refit/`，初训模型卡见 `docs/model_cards/`。Spark 细节见 [流水线说明](docs/SPARK_PIPELINE.md)，执行进度见 [状态](docs/status.md)。
+
+分类按冻结测试预测分别报告窗口平均、患者等权和 EEG 记录 `eeg_id` 等权 KL；七模型的三种加权混淆矩阵、逐类 precision/recall/F1、OVR AUC 与误报率在 [辅助指标](results/classification_weighted_metrics.json)，定义和复算命令见 [口径说明](docs/classification_weighted_metrics.md)。[最终模型配对区间](results/refit/paired_kl_intervals.json)按患者成组重采样，只描述预先固定配置的表现，不用于从测试集选择配置。图预测 MAE 是独立辅助任务；标准化 MAE/MSE 和逐频带误差不是 Kaggle 六分类评分要求。初训消融、初训分歧分析与最终重训主表的测试数值不能直接相减。
 
 24 页[可编辑 DRAFT PPTX](slides/ODEBrain_DRAFT_pending_experiments.pptx) 已用项目内本地 LibreOffice 转成 [DRAFT PDF](slides/ODEBrain_DRAFT_pending_experiments.pdf)，两者均为 24 页；见 [导出验证](docs/pdf_export.md)。这不是正式实验结果或最终提交 PDF。GitHub 仓库、权重访问地址与最终 PDF 均待正式实验产物和发布授权完成后补充；不会保留示例 URL 作为正式资源。HMS 数据由 Kaggle 标注 CC BY-NC 4.0，下载和再发布应遵守其当时条款；ODEBrain 官方代码为 MIT，来源与项目改造分别记录。

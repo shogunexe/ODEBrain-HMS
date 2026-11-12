@@ -116,7 +116,8 @@ def _case_picker(result_root):
     if index.get("provenance") != "real_hms_checkpoint":
         st.warning("真实 HMS 子集 smoke：案例使用真实数据，但训练/文件覆盖尚未达到正式实验条件。覆盖率：%.2f%%。图仅供流程验证，不能作为正式证据。" % (
             100 * float(index.get("manifest_file_coverage", 0))))
-    choices = index["cases"]
+    choices = sorted(index["cases"], key=lambda item: (
+        item.get("split") != "test", item.get("id", "")))
     case_labels = ["%d · %s · %s · %s" % (i, item.get("split", "?"), item.get("window_id", "?"),
                                              ", ".join(item.get("tags", []))) for i, item in enumerate(choices)]
     selected = choices[case_labels.index(st.selectbox("案例", case_labels))]
