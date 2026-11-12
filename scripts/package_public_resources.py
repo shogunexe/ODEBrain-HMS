@@ -17,6 +17,15 @@ from typing import Optional
 ROOT = Path(__file__).resolve().parents[1]
 CASE_ROOT = PurePosixPath("results/dynamics_refit")
 RUN_ROOT = PurePosixPath("artifacts/refit")
+ABLATION_ROOT = PurePosixPath("artifacts/runs/ode_ablations_v1")
+ABLATION_CONFIG_ROOT = PurePosixPath("artifacts/ablations_v1/configs")
+ABLATION_RUNS = (
+    "pretrain", "pretrained_rk4_025", "scratch_rk4_025", "pretrained_rk4_050",
+)
+ABLATION_RUN_FILES = (
+    "best.pt", "config.json", "graph_normalizer.npz", "completed.json",
+    "window_snapshot.json", "history.jsonl",
+)
 RUNS = (
     "tcn", "spectrogram_cnn", "fusion", "odebrain_inspired_hms",
     "graph_gru", "ode_pretrain", "graph_gru_pretrain",
@@ -33,7 +42,8 @@ NOTICE = """ODEBrain-inspired HMS project resource bundle
 
 Contains visualizations for six selected EEG cases derived from the
 HMS - Harmful Brain Activity Classification dataset, plus seven project-trained
-final checkpoints (five classifiers and two forecast pretraining checkpoints).
+final checkpoints (five classifiers and two forecast pretraining checkpoints),
+plus the pretraining and three classification-ablation checkpoints.
 It does not include raw EEG or case NPZ arrays. The interactive dashboard
 requires those arrays, which users must regenerate locally from Kaggle data.
 
@@ -125,11 +135,27 @@ def collect_paths(root: Path) -> tuple[list[PurePosixPath], dict]:
         paths.extend(base / name for name in RUN_FILES)
     if weights["odebrain_inspired_hms"] != index.get("checkpoint_sha256"):
         raise ValueError("Released ODE checkpoint differs from dynamics cases")
+    ablation_weights = {}
+    for run in ABLATION_RUNS:
+        base = ABLATION_ROOT / run
+        config_path = ABLATION_CONFIG_ROOT / (run + ".yaml")
+        completed = json.loads((root / base / "completed.json").read_text(encoding="utf-8"))
+        digest = sha256_file(root / base / "best.pt")
+        if completed.get("best_checkpoint_sha256") != digest:
+            raise ValueError("Ablation completion/checkpoint mismatch: " + run)
+        if completed.get("source_config_sha256") != sha256_file(root / config_path):
+            raise ValueError("Ablation source config mismatch: " + run)
+        if completed.get("window_snapshot_sha256") != sha256_file(root / base / "window_snapshot.json"):
+            raise ValueError("Ablation window snapshot mismatch: " + run)
+        ablation_weights[run] = digest
+        paths.append(config_path)
+        paths.extend(base / name for name in ABLATION_RUN_FILES)
     for path in paths:
         source = root.joinpath(*path.parts)
         if not source.is_file() or source.is_symlink():
             raise ValueError("Missing or linked release input: " + str(path))
     return sorted(paths), {"split_hash": index["split_hash"], "weights_sha256": weights,
+                           "ablation_weights_sha256": ablation_weights,
                            "case_count": len(index["cases"])}
 
 
@@ -185,7 +211,9 @@ def verify(archive: Path, destination: Optional[Path] = None) -> dict:
                 raise ValueError("EEG-derived case arrays cannot be installed from the public bundle")
             if not (name in {str(path) for path in ROOT_NOTICES} or
                     name.startswith(str(CASE_ROOT) + "/") or
-                    name.startswith(str(RUN_ROOT) + "/")):
+                    name.startswith(str(RUN_ROOT) + "/") or
+                    name.startswith(str(ABLATION_ROOT) + "/") or
+                    name.startswith(str(ABLATION_CONFIG_ROOT) + "/")):
                 raise ValueError("Archive contains an unexpected root")
             payload = source.read(name)
             if len(payload) != row["bytes"] or sha256_bytes(payload) != row["sha256"]:

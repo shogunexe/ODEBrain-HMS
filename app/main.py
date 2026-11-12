@@ -542,7 +542,7 @@ def page_dynamics(result_root):
     _plot(fig, "ode_trajectory_%s_%d_%d" % (case_dir.name, frame, int(is_3d)), meta=meta)
     st.write("当前轨迹时间：%.2f 秒；投影坐标：%s；投影导数 du/dt：%s" % (
         t[frame], np.round(p[frame], 4), np.round(v[frame], 4)))
-    st.caption("箭头在真实高维轨迹处计算 f(z,t)，再用训练集 PCA 的同一线性变换投影；仅表示观测轨迹上的模型方向。")
+    st.caption("箭头在真实高维轨迹处计算本项目的自主向量场 f(z)，再用训练集 PCA 的同一线性变换投影；仅表示观测轨迹上的模型方向。")
 
     fig = make_subplots(rows=2, cols=2, subplot_titles=("状态速度（每秒）", "相邻方向变化（弧度）",
                                                       "未来节点属性误差", "不确定性（nats）"))

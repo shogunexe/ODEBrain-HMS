@@ -130,4 +130,6 @@ done
 scripts/export_slides_pdf.sh \
   "$project_dir/slides/ODEBrain_LOCAL_PREVIEW_pending_publication.pptx" \
   "$project_dir/slides"
-echo "Local preview complete; inspect the rendered PDF contact sheet before publication."
+"$python_bin" scripts/package_public_resources.py build
+"$python_bin" scripts/package_public_resources.py verify
+echo "Local preview and public resource archive complete; inspect the rendered PDF before publication."
