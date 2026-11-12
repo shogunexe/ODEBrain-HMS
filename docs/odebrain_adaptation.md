@@ -42,4 +42,4 @@
 - 不输出预测邻接矩阵，因此不能展示“预测连接”或边准确率。`edge_weights` 是模型内部聚合权重，也不是因果/解剖连接。
 - 目前未提供随机潜变量、论文门控项、自适应衰减、条件向量场、可变每样本预测时间或自适应误差求解器。
 - 不将潜在轨迹速度作为脑生理量；投影方向必须对完整高维导数施加同一个训练集拟合线性投影。
-- 官方仓库面向 TUSZ；本项目 HMS 六分类效果未知，需与相同图输入的离散 GNN+GRU 及 persistence 预测基线比较。
+- 官方仓库面向 TUSZ；本项目 HMS 六分类与短时图预测结果见 `results/refit/final_comparison.json`、`results/refit/forecast_comparison.json`。同图输入的离散 GraphGRU 和 persistence 已在冻结测试集上比较；不得把 HMS 结果归属到官方实现。

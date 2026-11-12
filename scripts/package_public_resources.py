@@ -24,6 +24,7 @@ RUNS = (
 RUN_FILES = (
     "final.pt", "config.json", "graph_normalizer.npz", "completed.json",
     "normalizer_record.json", "validation_record.json", "window_snapshot.json",
+    "history.jsonl",
 )
 ROOT_NOTICES = (PurePosixPath("LICENSE.md"), PurePosixPath("THIRD_PARTY_NOTICES.md"))
 MANIFEST_NAME = "PUBLIC_RESOURCE_MANIFEST.json"

@@ -5,10 +5,10 @@
 ## 固定内容
 
 - 六个预设的验证/测试案例，每例六组 PNG 和六组 SVG；共 72 张静态图。
-- 五个最终分类模型和 ODE、GraphGRU 两个最终预测预训练模型的 `final.pt`、`config.json`、图归一化参数，以及训练完成、验证来源和窗口 ID 快照记录。共 7 组，每组 7 个文件。
+- 五个最终分类模型和 ODE、GraphGRU 两个最终预测预训练模型的 `final.pt`、`config.json`、图归一化参数，以及训练完成、验证来源、逐轮训练历史和窗口 ID 快照记录。共 7 组，每组 8 个文件。
 - `PUBLIC_RESOURCE_MANIFEST.json` 逐文件记录路径、大小和 SHA256；`PUBLIC_RESOURCE_NOTICE.txt`、根目录的 [LICENSE.md](../LICENSE.md) 与 [THIRD_PARTY_NOTICES.md](../THIRD_PARTY_NOTICES.md) 记录项目权利声明和第三方来源。
 
-当前本地构建的 `odebrain_hms_resources_v1.zip` 为 **15,655,743 字节**，SHA256 为 `25c9353281da3bebd5f628598511fd4baea2614f2ac283c40b28df050b1f51d0`，共 130 个有效载荷文件。发布前若任何图或权重改变，必须重新构建并更新这个值。资源包位于 `artifacts/release/`，该目录不进入 Git；公开下载地址待正式发布后填写并实测。
+当前本地构建的 `odebrain_hms_resources_v1.zip` 为 **15,660,956 字节**，SHA256 为 `dc70ce8d23fd4bf939ac36683ef07fcce340bb260c632e769eb240da3a425aad`，共 137 个有效载荷文件。发布前若任何图或权重改变，必须重新构建并更新这个值。资源包位于 `artifacts/release/`，该目录不进入 Git；公开下载地址待正式发布后填写并实测。
 
 ```bash
 export LD_LIBRARY_PATH=/export/usr/python/3.8.9/lib:${LD_LIBRARY_PATH:-}
