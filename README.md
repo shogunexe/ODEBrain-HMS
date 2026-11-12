@@ -29,6 +29,8 @@ export LD_LIBRARY_PATH=/export/usr/python/3.8.9/lib:${LD_LIBRARY_PATH:-}
 .venv/bin/python -m pip install -r requirements.txt
 ```
 
+Linux x86_64 / Python 3.8 环境可用 [已验证的精确版本清单](requirements-lock-py38-linux.txt) 替代上面的 `requirements.txt` 安装；2026-11-12 的干净克隆与新 venv 已通过 `pip check` 和 `scripts/reproduce.sh smoke`（86 passed、1 skipped）。`requirements.txt` 也显式限定了 Streamlit 的三个传递依赖版本，以兼容服务器自带的旧版 pip。
+
 可用 GPU 通过 `CUDA_VISIBLE_DEVICES` 选择；训练先单卡验证，再按实际占用和任务预算扩展。对于其他服务器，使用自身 Python 3.8+ 创建 venv 即可。
 
 ## 可复现命令
@@ -59,7 +61,7 @@ export PYSPARK_PYTHON="$PWD/.venv/bin/python"
 
 未指定 `--smoke` 的训练与评估会检查完整元数据覆盖、每个 EEG 文件已到位和质量审计字段；只有完整患者划分与训练产物通过校验才会生成正式结果。
 
-`scripts/reproduce.sh smoke` 执行合成接口测试并在真实数据已到位时跑小样本闭环；`full` 运行正式阶段入口。合成 smoke 不输出正式研究指标。
+`scripts/reproduce.sh smoke` 执行合成接口测试并在真实数据已到位时跑小样本闭环；`full` 从原始数据运行初训、Spark 和最终本地交付链，种子重复默认使用 GPU 0，可用 `FULL_SEED_GPU` 指定。合成 smoke 不输出正式研究指标。
 
 初训、Spark 基线与性能实验完成后，运行 `scripts/reproduce_final_local.sh` 可按依赖顺序复核或恢复七个 train+val 重训、三条消融、42/44/45 种子汇总、全部补充指标、模型卡、动力学案例，并生成正式界面截图与带“待发布”标识的本地预览 PPTX/PDF。缺少 seed 44/45 的机器可运行 `scripts/reproduce_final_local.sh --run-seeds 0`，其中 `0` 是可用 GPU 编号；也可先分别运行 `scripts/run_seed_stability.sh 44 0` 和 `scripts/run_seed_stability.sh 45 0`。用 `FINAL_DEVICE=cpu`、`FINAL_WORKERS=0` 可在无 GPU 环境执行其余步骤，但训练时间会显著增加。该入口要求完整 Kaggle 数据与初训结果，不发布仓库或权重；`scripts/export_slides_pdf.sh` 还需按 [导出验证](docs/pdf_export.md) 安装本地 LibreOffice 与中文字体。
 

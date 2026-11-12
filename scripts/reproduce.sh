@@ -117,11 +117,10 @@ PY
   "$PYTHON" -m src.cli evaluate --run-dir artifacts/runs/graph_gru --split val --workers 4
   "$PYTHON" -m src.cli evaluate --run-dir artifacts/runs/graph_gru --split test --workers 4
   "$PYTHON" scripts/evaluate_forecast.py --ode-run-dir artifacts/runs/ode_pretrain --gru-run-dir artifacts/runs/graph_gru_pretrain --manifest data/curated/split_manifest.csv --graph-cache-dir data/training/graph_forecast_v2 --output results/forecast_comparison.json --device cuda --workers 4
-  "$PYTHON" scripts/run_ablations.py train --device cuda --workers 4
-  "$PYTHON" scripts/run_ablations.py test --device cuda --workers 4
   "$PYTHON" scripts/write_model_cards.py --run tcn=artifacts/runs/tcn --run spectrogram_cnn=artifacts/runs/spectrogram_cnn --run fusion=artifacts/runs/fusion --run graph_gru=artifacts/runs/graph_gru --run odebrain_inspired_hms=artifacts/runs/ode_finetune
   "$PYTHON" scripts/benchmark_spark.py --manifest data/curated/split_manifest.csv --output results/spark_benchmark --experiment-status formal --methods serial,multiprocessing,spark --workers 1 4 --repeats 3
   "$PYTHON" scripts/export_dynamics.py --checkpoint artifacts/runs/ode_finetune/best.pt --manifest data/curated/split_manifest.csv --output results/dynamics
+  scripts/reproduce_final_local.sh --run-seeds "${FULL_SEED_GPU:-0}"
 else
   echo "Use: scripts/reproduce.sh [smoke|full]" >&2
   exit 2

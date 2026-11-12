@@ -2,7 +2,7 @@
 
 更新：2026-11-11 19:42 Asia/Shanghai。
 
-2026-11-12 11:52 补充：三臂消融的预训练、`pretrained_rk4_025` 和 `scratch_rk4_025` 已完成；`pretrained_rk4_050` 训练到第 26 轮，最佳验证 KL 0.99465，尚无训练完成标记。三臂正式测试、`results/ablation.json`、正式截图和预览/最终 PPT/PDF 仍待实际生成。代码侧已补患者与 EEG 记录等权分类指标、配对患者区间、三臂消融等权补算、正式图表、资源打包及本地最终阶段复现入口；全套测试 87 项通过。公开资源包在本地冻结并通过一次干净克隆安装和 smoke，但仓库/Release 尚未公开，不能声称最终交付。
+2026-11-12 12:04 补充：三臂消融的预训练、`pretrained_rk4_025` 和 `scratch_rk4_025` 已完成；`pretrained_rk4_050` 最近记录为第 26 轮，最佳验证 KL 0.99465，尚无训练完成标记。三臂正式测试、`results/ablation.json`、正式截图和预览/最终 PPT/PDF 仍待实际生成。代码侧已补患者与 EEG 记录等权分类指标、配对患者区间、三臂消融等权补算、正式图表、资源打包及本地最终阶段复现入口；本机全套测试 87 项通过。干净克隆新 venv 首次安装发现旧 pip 忽略 Streamlit 传递依赖上限，已在 `requirements.txt` 显式修复；修复后 `pip check` 通过，干净克隆 smoke 为 86 passed、1 skipped。公开资源 ZIP 已冻结并安装验证，仓库/Release 尚未公开，不能声称最终交付。
 
 22:40 补充：七个分类器已从冻结测试预测补算窗口、患者、EEG 记录三种等权 KL 及三种加权混淆矩阵、逐类召回率/F1/AUC/误报率，见 `results/classification_weighted_metrics.json`；最终五模型的患者配对 KL 差值区间见 `results/refit/paired_kl_intervals.json`。这些是离线描述，不用于测试集选模。Spark MLlib 原始预测的 EEG 记录等权 KL 另见 `results/spark_baselines/eeg_record_equal_kl.json`。图预测初训与最终重训结果均完成 EEG 记录等权 MAE 复算；最终结果覆盖 22,606 个合格窗口、387 患者、3,922 条 EEG 记录。消融第二臂在 22:20 到第 24 轮；第三臂与正式截图/PPT/PDF 待运行。消融依赖的 `src/cli.py`、`src/evaluation/metrics.py` 保持启动时 SHA，新增口径由独立脚本计算。用户已确认不追加完整推理成本、额外软硬标签和数值收敛实验，标准化 MAE/MSE 与逐频带误差不在本次必要指标内。
 
