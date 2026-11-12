@@ -6,7 +6,7 @@
 
 - 106,800 条 HMS 元数据已全量审计，保留 106,587 个有效分类窗口；患者互斥 train/val/test 为 67,114/16,835/22,638 个窗口。官方训练数据 ZIP 已完整下载、校验和解压。全量 Spark 特征、MLlib LR/RF、36 次性能基准、五模型最终 train+val 重训、42/44/45 三种子、预测任务、六个动力学案例及三条消融测试均已完成。
 - 最终分类 seed 42 窗口等权 KL：时频融合 1.0530、TCN 1.2000、频谱 CNN 1.3228、GraphGRU 1.3611、ODEBrain-inspired HMS 1.6276。ODE 未在分类上领先；患者、EEG 记录等权及逐类指标见[正式结果](docs/formal_results.md)。消融是 train-only 加验证早停，与最终重训主表不能直接相减；测试集结果不用于配置选择。
-- 24 页最终 [PPTX](slides/ODEBrain_final.pptx) 与主要交付 [PDF](slides/ODEBrain_final.pdf) 已生成并逐页渲染；正式浏览器截图已采集。[公开仓库](https://github.com/shogunexe/ODEBrain-HMS) 和 [v1 资源 ZIP](https://github.com/shogunexe/ODEBrain-HMS/releases/download/v1/odebrain_hms_resources_v1.zip) 已通过匿名 HTTP 200、全包 SHA256 和逐文件校验。资源 ZIP 已安装到干净克隆；全套代码测试 87 项通过。
+- 24 页最终 [PPTX](slides/ODEBrain_final.pptx) 与主要交付 [PDF](slides/ODEBrain_final.pdf) 已生成并逐页渲染；正式浏览器截图已采集。[公开仓库](https://github.com/shogunexe/ODEBrain-HMS) 和 [v1 资源 ZIP](https://github.com/shogunexe/ODEBrain-HMS/releases/download/v1/odebrain_hms_resources_v1.zip) 已通过匿名 HTTP 200、全包 SHA256 和逐文件校验。资源 ZIP 已从公开 Release 下载并安装到全新克隆；全套代码测试 87 项通过，公开克隆 smoke 为 86 项通过、1 项跳过。
 - 模型名 **ODEBrainInspiredHMS**；这是独立重写的 HMS 改造版，不是完整官方代码移植。[审计与偏离](docs/odebrain_adaptation.md)。
 
 ## 数据与研究边界
