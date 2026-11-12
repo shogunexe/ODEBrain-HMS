@@ -268,6 +268,9 @@ def build(final=False, preview=False):
     project_links = load_verified_resources(evidence) if final else {}
     prs = Presentation(); prs.slide_width = Inches(13.333); prs.slide_height = Inches(7.5)
     for i, (title, claim, bullets, expected) in enumerate(PAGES, 1):
+        if i == 23 and final:
+            bullets = list(bullets)
+            bullets[2] = "公开仓库和资源 ZIP 已匿名核验：HTTP 200、SHA256 与文件清单一致"
         slide = prs.slides.add_slide(prs.slide_layouts[6])
         slide.background.fill.solid(); slide.background.fill.fore_color.rgb = NAVY
         box(slide, 0, 0, 13.333, .13, TEAL, False)

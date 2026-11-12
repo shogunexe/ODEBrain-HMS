@@ -38,4 +38,4 @@ Spark MLlib 的逻辑回归与随机森林使用 train-only 训练协议，同�
 
 ## 交付追溯
 
-正式界面截图和 24 页 PDF 使用[证据清单](../results/slides_evidence_preview.json)中的文件 SHA256 绑定实验来源；公开仓库和权重 Release 的匿名下载校验在发布后写入 `results/formal_resources.json`，正式证据清单与最终 PDF 才会生成。六个真实 HMS 案例的图及权重资源见[公开资源说明](public_resources.md)。
+正式界面截图、[24 页最终 PDF](../slides/ODEBrain_final.pdf) 与[证据清单](../results/slides_evidence.json)用文件 SHA256 绑定实验来源；[公开仓库](https://github.com/shogunexe/ODEBrain-HMS)和权重 Release 的匿名 HTTP 下载、全包及逐文件校验见[公开资源证据](../results/formal_resources.json)。六个真实 HMS 案例的图及权重资源见[公开资源说明](public_resources.md)。

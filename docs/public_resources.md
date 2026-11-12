@@ -9,7 +9,7 @@
 - 消融预训练和三条分类臂的 `best.pt`、生成的 YAML 配置、实际配置、图归一化参数、完成记录、逐轮历史和窗口 ID 快照。资源清单逐一校验完成记录中的权重、源配置和窗口快照 SHA256；其分类测试结果按独立消融协议报告。
 - `PUBLIC_RESOURCE_MANIFEST.json` 逐文件记录路径、大小和 SHA256；`PUBLIC_RESOURCE_NOTICE.txt`、根目录的 [LICENSE.md](../LICENSE.md) 与 [THIRD_PARTY_NOTICES.md](../THIRD_PARTY_NOTICES.md) 记录项目权利声明和第三方来源。
 
-本地已冻结 `odebrain_hms_resources_v1.zip`：**20,164,756 字节**、165 个有效载荷文件，SHA256 为 `6ed72bc556f6a9ceb2928bc97c143e703c99b956c1df512418ecf0e1b1f6b6ce`。已经逐文件校验并安装进干净克隆。资源包位于 `artifacts/release/`，该目录不进入 Git；公开下载地址待正式发布后填写并实测。
+本地已冻结 [odebrain_hms_resources_v1.zip](https://github.com/shogunexe/ODEBrain-HMS/releases/download/v1/odebrain_hms_resources_v1.zip)：**20,164,756 字节**、165 个有效载荷文件，SHA256 为 `6ed72bc556f6a9ceb2928bc97c143e703c99b956c1df512418ecf0e1b1f6b6ce`。它已经逐文件校验并安装进干净克隆；公开仓库和 ZIP 均以匿名 HTTP GET 返回 200，实际下载文件再次通过完整 SHA256 和内部清单校验，见 `results/formal_resources.json`。本地资源包位于 `artifacts/release/`，该目录不进入 Git。
 
 ```bash
 export LD_LIBRARY_PATH=/export/usr/python/3.8.9/lib:${LD_LIBRARY_PATH:-}
@@ -36,10 +36,10 @@ Streamlit 的样本页和 ODE 动力学页会从 `case.npz` 读取信号与轨�
 
 案例图基于 [HMS - Harmful Brain Activity Classification](https://www.kaggle.com/competitions/hms-harmful-brain-activity-classification/data?select=train_eegs) 的选定 EEG 窗口，经过本项目裁剪、图特征计算、模型推断和绘图。数据创建者署名及详细来源见 [第三方声明](../THIRD_PARTY_NOTICES.md)。Kaggle 数据页标注 [CC BY-NC 4.0](https://creativecommons.org/licenses/by-nc/4.0/)；公开图保留数据来源和改动说明，使用者须遵守该许可的署名与非商业条件。原始数据由 Kaggle 提供，Kaggle 和数据创建者并未认可本项目。ODEBrain 参考实现及其 MIT 许可与本项目改造的关系见 [方法来源](odebrain_adaptation.md)。项目代码与权重仅供检查和复现，未授予一般复制、修改或再分发许可；详见 [项目声明](../LICENSE.md)。模型权重不能用于临床诊断。
 
-公开仓库发布时，资源包应作为固定 tag 的 GitHub Release 附件上传。发布后使用实际的公开地址运行以下命令。它会匿名 HTTP GET 仓库页面及完整附件，比较附件与本地冻结 ZIP 的大小和 SHA256，再核对附件内部逐文件清单；全部通过后才写 `results/formal_resources.json`，供正式 PPT/PDF 使用。
+资源包已作为公开仓库 [v1 Release](https://github.com/shogunexe/ODEBrain-HMS/releases/tag/v1) 的附件上传。以下命令使用实际公开地址匿名 HTTP GET 仓库页面及完整附件，比较附件与本地冻结 ZIP 的大小和 SHA256，再核对附件内部逐文件清单；全部通过后才写 `results/formal_resources.json`，供正式 PPT/PDF 使用。
 
 ```bash
 .venv/bin/python scripts/verify_public_resources.py \
-  --repository-url "$REPOSITORY_URL" \
-  --weights-url "$WEIGHTS_URL"
+  --repository-url https://github.com/shogunexe/ODEBrain-HMS \
+  --weights-url https://github.com/shogunexe/ODEBrain-HMS/releases/download/v1/odebrain_hms_resources_v1.zip
 ```

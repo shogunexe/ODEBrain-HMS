@@ -69,7 +69,8 @@ def get_weights(url: str, destination: Path) -> dict:
             output.write(block)
     if status != 200 or size == 0:
         raise ValueError("Release ZIP anonymous GET did not return HTTP 200 content")
-    return {"url": url, "verified_http_status": status, "resolved_url": final_url,
+    return {"url": url, "verified_http_status": status,
+            "resolved_host": urlparse(final_url).hostname,
             "bytes": size, "content_type": content_type}
 
 

@@ -1,6 +1,6 @@
 # 项目执行状态
 
-当前更新：2026-11-12 13:35 Asia/Shanghai。五模型最终重训、三种子重复、三臂消融、图属性预测、Spark 基线和 36 次性能基准均已完成。三条消融测试均覆盖 22,638 窗口/389 患者；窗口 KL 为 1.3219、1.2688、1.1079，患者及 EEG 记录等权值见 `results/ablation_weighted_metrics.json`。A800 在第三臂训练完成后的验证启动时因显存竞争 OOM；保留原 checkpoint，改在本机两张空闲 P100 完成验证及三臂测试，没有重新训练或改配置。正式浏览器截图已生成；24 页本地预览 PPTX/PDF 已导出并逐页渲染，公开仓库、Release 链接校验和最终版 PPTX/PDF 仍待完成。全套代码测试 87 项通过，资源 ZIP 已安装到干净克隆并核对 SHA256。
+当前更新：2026-11-12 13:40 Asia/Shanghai。五模型最终重训、三种子重复、三臂消融、图属性预测、Spark 基线和 36 次性能基准均已完成。三条消融测试均覆盖 22,638 窗口/389 患者；窗口 KL 为 1.3219、1.2688、1.1079，患者及 EEG 记录等权值见 `results/ablation_weighted_metrics.json`。A800 在第三臂训练完成后的验证启动时因显存竞争 OOM；保留原 checkpoint，改在本机两张空闲 P100 完成验证及三臂测试，没有重新训练或改配置。正式浏览器截图、24 页本地预览和[最终 PDF](../slides/ODEBrain_final.pdf)均已生成并逐页渲染。[公开仓库](https://github.com/shogunexe/ODEBrain-HMS)与 v1 Release 已发布，匿名 HTTP 200、资源 ZIP 全包和 165 个文件的 SHA256 校验通过。全套代码测试 87 项通过；还需从公开仓库干净克隆复核运行。
 
 以下为先前阶段的时间记录；以上段落和下表为当前状态。
 
@@ -20,7 +20,7 @@
 | S2 Spark 流水线 | 全量特征、LR/RF、性能基准已完成 | 106,587 个有效窗口均有质量合格特征；LR/RF 覆盖 22,638 个测试窗口。三种方法、三种数据量共 36 次基准运行完成，每种配置三次。 |
 | S3 深度模型 | 五模型初训及测试已完成 | TCN、频谱 CNN、融合、GraphGRU、ODEBrain-inspired HMS 均完成完整测试；图预测初训对照覆盖 22,606 个预测合格测试窗口。 |
 | S4 最终主表 | 五模型 train+val 重训已完成 | `results/refit/final_comparison.json` 已核对五模型同一 22,638 窗口/389 患者测试集。融合 KL 1.0530 最好；ODE KL 1.6276，图 GRU KL 1.3611，不能宣称 ODE 分类领先。 |
-| S4-S6 补充分析与交付 | 实验与本地预览完成，公开发布待验证 | 三种子稳定性汇总、最终版预测对照、6 个最终权重图动力学案例、最终模型卡、专家分歧分析和三臂全测试均已生成。本地 24 页预览 PPTX/PDF 与正式浏览器截图已通过；下一步为公开仓库/Release、匿名链接验证和最终 PDF。 |
+| S4-S6 补充分析与交付 | 正式产物已生成，待最终公开克隆复核 | 三种子稳定性、最终版预测、6 个真实动力学案例、模型卡、专家分歧和三臂全测试均已生成。24 页最终 PPTX/PDF、正式截图、公开仓库/Release 和匿名链接校验已通过。 |
 
 ## 当前约束
 
@@ -31,15 +31,14 @@
 - 旧预测缓存 `data/training/graph_forecast` 因 EEG `1001717358` 的部分前 5 秒全常量窗口失败；分类 50 秒窗口仍合格。新缓存 `data/training/graph_forecast_v2` 采用独立 `eligibility_reason`，已校验 106,434/106,587 个预测 eligible 窗口，排除 153 个；测试集 22,606/22,638 个 eligible，排除 32 个。抽查 10 个真实测试窗口，缓存与直接计算张量完全相同。分类 manifest、划分和缓存不变。正式预测仅评价 eligible 子集并披露排除原因。见 [资格协议](forecast_eligibility.md)。
 - 初训单划分完整测试覆盖 22,638 窗口/389 患者：TCN KL 1.1966，频谱 CNN 1.2136，时频融合 1.1530。这些是初训阶段评估，最终主表以 `train+val` 重训后的独立测试为准。Spark 特征表 train/val/test 分别为 67,114/16,835/22,638 行，均 `quality_ok`；正式 LR/RF 测试 KL 为 1.2617/1.1568。三方法性能基准已完成 36 次运行。
 - 原 V100 节点的初训与七次 refit 均已完成；`hms_post_queue` 因初训模型卡错误地要求有效 EEG 记录占比 100% 而停止，实际审计占比为 99.5904%，原始文件覆盖与测试窗口覆盖均完整。该门槛已改为核对 manifest 推导的精确比例；模型卡已生成。专家分歧分析中的重复掩码也已修复并运行。
-- seed 44 和在 A800 节点运行的 seed 45 均已完成；三种子汇总 `results/seed_stability/summary.json` 采用 42/44/45，在同一患者划分和 22,638 测试窗口上计算。融合 KL 均值±样本标准差为 1.1616±0.1346，TCN 为 1.2224±0.0196，图 GRU 为 1.2258±0.1262，ODE 为 1.5408±0.1004。seed 43 因旧队列失败未启动，45 是按资源可用性替代，非按测试结果挑选。消融任务在 A800 节点持续写入共享目录；当前登录节点为 P100，无法直接看到远端 tmux，会以历史文件和完成标记核对进度。
+- seed 44 和在 A800 节点运行的 seed 45 均已完成；三种子汇总 `results/seed_stability/summary.json` 采用 42/44/45，在同一患者划分和 22,638 测试窗口上计算。融合 KL 均值±样本标准差为 1.1616±0.1346，TCN 为 1.2224±0.0196，图 GRU 为 1.2258±0.1262，ODE 为 1.5408±0.1004。seed 43 因旧队列失败未启动，45 是按资源可用性替代，非按测试结果挑选。第三臂在 A800 训练完成；其后的验证因远端显存不足改在 P100 运行，三臂正式测试也在 P100 完成。
 - 最终重训权重的预测对照 `results/refit/forecast_comparison.json` 已完成，在 22,606 窗口/387 患者上，ODE 的 1/3/5 秒 MAE 为 0.6565/0.6833/0.7031，图 GRU 为 0.6415/0.6709/0.6885，持久性基线为 0.7830/0.8137/0.8438。最终模型卡与 6 个真实测试/验证动力学案例已导出。
 - 图预测初训测试 eligible 子集 22,606 窗口/387 患者：ODE 在 1/3/5 秒的 MAE 为 0.6449/0.6722/0.6928，GRU 为 0.6370/0.6677/0.6874，persistence 为 0.7830/0.8137/0.8438。ODE 和 GRU 均优于 persistence，GRU 略优于 ODE。此处 MAE 单位为原始 log1p 频带功率。
 - Spark 正式基准 `results/spark_benchmark/{runs,summary}.json` 共 36 次运行和 12 个三重复配置。全量中位数：串行 4063 秒、四进程 1046 秒、Spark 单 worker 4043 秒、Spark 四 worker 2146 秒；同一共享盘和一台物理机，不能推断多机加速。
-- 本地 LibreOffice 7.6.7.2 与中文字体已放在忽略目录 `artifacts/pdf-tools/`；`scripts/export_slides_pdf.sh` 已将 DRAFT PPTX 转换为 DRAFT PDF，PPTX/PDF/渲染 PNG 均为 24 页。正式 PPTX/PDF 仍须真实结果和证据门禁通过；见 [导出验证](pdf_export.md)。
-- GitHub 已登录，但公共仓库创建和推送须在可复查内容完成后进行；不虚构资源链接。
+- 本地 LibreOffice 7.6.7.2 与中文字体已放在忽略目录 `artifacts/pdf-tools/`；正式 PPTX/PDF/渲染 PNG 均为 24 页，公开链接保留在 PDF 中；见 [导出验证](pdf_export.md)。
+- [公开 GitHub 仓库](https://github.com/shogunexe/ODEBrain-HMS)和[资源 ZIP](https://github.com/shogunexe/ODEBrain-HMS/releases/download/v1/odebrain_hms_resources_v1.zip)已匿名下载验证，证据见 `results/formal_resources.json`。
 
 ## 下一个可执行闭环
 
-1. 完成公开仓库和 Release 上传，匿名下载资源 ZIP 并核对全包 SHA256 与逐文件清单。
-2. 用实际公开地址生成正式证据、最终 PPTX/PDF，渲染逐页复核后推送。
-3. 从公开仓库干净克隆运行 smoke，核对发布链接、主要结果和交付清单。
+1. 提交并推送最终证据、文档和 PPTX/PDF。
+2. 从公开仓库干净克隆运行 smoke，核对发布链接、主要结果和交付清单。

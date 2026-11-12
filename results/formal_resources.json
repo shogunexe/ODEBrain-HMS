@@ -1,0 +1,21 @@
+{
+  "experiment_status": "formal",
+  "repository": {
+    "url": "https://github.com/shogunexe/ODEBrain-HMS",
+    "verified_http_status": 200,
+    "resolved_url": "https://github.com/shogunexe/ODEBrain-HMS",
+    "verified_at": "2026-11-12T05:35:25Z"
+  },
+  "weights": {
+    "url": "https://github.com/shogunexe/ODEBrain-HMS/releases/download/v1/odebrain_hms_resources_v1.zip",
+    "verified_http_status": 200,
+    "resolved_host": "release-assets.githubusercontent.com",
+    "bytes": 20164756,
+    "content_type": "application/octet-stream",
+    "verified_at": "2026-11-12T05:35:25Z",
+    "sha256": "6ed72bc556f6a9ceb2928bc97c143e703c99b956c1df512418ecf0e1b1f6b6ce",
+    "entry_count": 165
+  },
+  "verification_method": "anonymous_http_get_and_full_zip_sha256",
+  "local_frozen_archive": "/export/home/limianchong/CSproject/artifacts/release/odebrain_hms_resources_v1.zip"
+}

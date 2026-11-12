@@ -6,7 +6,7 @@
 
 - 106,800 条 HMS 元数据已全量审计，保留 106,587 个有效分类窗口；患者互斥 train/val/test 为 67,114/16,835/22,638 个窗口。官方训练数据 ZIP 已完整下载、校验和解压。全量 Spark 特征、MLlib LR/RF、36 次性能基准、五模型最终 train+val 重训、42/44/45 三种子、预测任务、六个动力学案例及三条消融测试均已完成。
 - 最终分类 seed 42 窗口等权 KL：时频融合 1.0530、TCN 1.2000、频谱 CNN 1.3228、GraphGRU 1.3611、ODEBrain-inspired HMS 1.6276。ODE 未在分类上领先；患者、EEG 记录等权及逐类指标见[正式结果](docs/formal_results.md)。消融是 train-only 加验证早停，与最终重训主表不能直接相减；测试集结果不用于配置选择。
-- 24 页本地预览 [PPTX](slides/ODEBrain_LOCAL_PREVIEW_pending_publication.pptx) 与 [PDF](slides/ODEBrain_LOCAL_PREVIEW_pending_publication.pdf) 已生成并逐页渲染；正式浏览器截图已采集。公开仓库、Release 链接验证和最终版 PDF 正在收尾，完成前以预览文件的“待公开发布”标记为准。资源 ZIP 已通过全包与逐文件校验，并安装到干净克隆。全套代码测试 87 项通过。
+- 24 页最终 [PPTX](slides/ODEBrain_final.pptx) 与主要交付 [PDF](slides/ODEBrain_final.pdf) 已生成并逐页渲染；正式浏览器截图已采集。[公开仓库](https://github.com/shogunexe/ODEBrain-HMS) 和 [v1 资源 ZIP](https://github.com/shogunexe/ODEBrain-HMS/releases/download/v1/odebrain_hms_resources_v1.zip) 已通过匿名 HTTP 200、全包 SHA256 和逐文件校验。资源 ZIP 已安装到干净克隆；全套代码测试 87 项通过。
 - 模型名 **ODEBrainInspiredHMS**；这是独立重写的 HMS 改造版，不是完整官方代码移植。[审计与偏离](docs/odebrain_adaptation.md)。
 
 ## 数据与研究边界
@@ -71,4 +71,4 @@ export PYSPARK_PYTHON="$PWD/.venv/bin/python"
 
 分类按冻结测试预测分别报告窗口平均、患者等权和 EEG 记录 `eeg_id` 等权 KL；七模型的三种加权混淆矩阵、逐类 precision/recall/F1、OVR AUC 与误报率在 [辅助指标](results/classification_weighted_metrics.json)，定义和复算命令见 [口径说明](docs/classification_weighted_metrics.md)。[最终模型配对区间](results/refit/paired_kl_intervals.json)按患者成组重采样，只描述预先固定配置的表现，不用于从测试集选择配置。图预测 MAE 是独立辅助任务；标准化 MAE/MSE 和逐频带误差不是 Kaggle 六分类评分要求。初训消融、初训分歧分析与最终重训主表的测试数值不能直接相减。
 
-24 页[本地预览 PPTX](slides/ODEBrain_LOCAL_PREVIEW_pending_publication.pptx) 与[本地预览 PDF](slides/ODEBrain_LOCAL_PREVIEW_pending_publication.pdf) 已由真实实验结果生成，正式截图、三臂消融和三种等权指标均通过证据门禁。预览版明确标有“待公开发布”，不能称为最终 PDF；公开仓库和 Release 的匿名 URL 验证后再生成最终版。旧 DRAFT 仅保留作为过程记录，见 [导出验证](docs/pdf_export.md)。HMS 数据由 Kaggle 标注 CC BY-NC 4.0；来源与再分发边界见 [公开资源说明](docs/public_resources.md)。
+24 页[最终 PPTX](slides/ODEBrain_final.pptx) 和[最终 PDF](slides/ODEBrain_final.pdf) 均由真实实验结果与正式证据生成，主交付为 PDF；页数、渲染图和公开超链接已核对。实际公开资源位于 [GitHub 仓库](https://github.com/shogunexe/ODEBrain-HMS) 和 [v1 权重/案例图 ZIP](https://github.com/shogunexe/ODEBrain-HMS/releases/download/v1/odebrain_hms_resources_v1.zip)。旧 DRAFT 与 LOCAL_PREVIEW 只保留为过程记录，见 [导出验证](docs/pdf_export.md)。HMS 数据由 Kaggle 标注 CC BY-NC 4.0；来源与再分发边界见 [公开资源说明](docs/public_resources.md)。
