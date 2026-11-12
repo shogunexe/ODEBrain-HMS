@@ -2,11 +2,11 @@
 
 课程项目：《基于 Spark 与 ODEBrain 连续动力学建模的 EEG 异常脑电活动分析与可视化系统》。当前目录是实施中的研究代码。**没有真实 HMS 实验结果时，不应把合成测试当成分类表现。**
 
-## 当前状态（2026-11-11 19:42 Asia/Shanghai）
+## 当前状态（2026-11-12 13:35 Asia/Shanghai）
 
-- 已实现 HMS 元数据审计、患者级划分、EEG 窗口与图特征、Spark 特征和 LR/RF 基线、四种深度对照、ODEBrain-inspired HMS、评估指标与可视化代码。
-- 本机实测 2×V100S 32GB、40 CPU、251 GiB RAM；详见 [环境盘点](docs/environment.md)。不以方案中的 8×A100 预算制定实验结论。
-- Kaggle 账号已接受[竞赛规则](https://www.kaggle.com/competitions/hms-harmful-brain-activity-classification/rules)。19,762,787,900 字节的官方训练数据 ZIP 已下载完整并通过 `unzip -t` 全包校验；17,300 个 EEG 和 11,138 个频谱文件均已解压。全量质量审计覆盖 106,800 条标注、17,089 个被引用 EEG 文件，保留 106,587 个有效分类窗口；患者级 train/val/test 分别为 67,114/16,835/22,638 个窗口，split SHA256 为 `f334b0e31f5faf520f85a2d4c79631caf7edef2102460a8bcd629fc2a699a82f`。全量 Spark 特征、LR/RF 基线和三方法 36 次性能基准已完成。五个深度分类模型均已完成初训、完整测试和 train+val 固定轮次重训；融合单种子测试 KL 1.0530 最好，ODE 为 1.6276，并未在分类上领先。42/44/45 三种子稳定性汇总已完成，融合 KL 均值 1.1616。预测任务专用 `graph_forecast_v2` 缓存有 106,434 个 eligible 窗口，测试集 22,606 个；最终重训权重下 ODE 和 GraphGRU 预测均优于 persistence。最终版图动力学案例和模型卡已生成；消融仍在运行，本地预览 PDF 等待消融结果。冻结的 36 文件、364 窗口子集仅用于 smoke。
+- 106,800 条 HMS 元数据已全量审计，保留 106,587 个有效分类窗口；患者互斥 train/val/test 为 67,114/16,835/22,638 个窗口。官方训练数据 ZIP 已完整下载、校验和解压。全量 Spark 特征、MLlib LR/RF、36 次性能基准、五模型最终 train+val 重训、42/44/45 三种子、预测任务、六个动力学案例及三条消融测试均已完成。
+- 最终分类 seed 42 窗口等权 KL：时频融合 1.0530、TCN 1.2000、频谱 CNN 1.3228、GraphGRU 1.3611、ODEBrain-inspired HMS 1.6276。ODE 未在分类上领先；患者、EEG 记录等权及逐类指标见[正式结果](docs/formal_results.md)。消融是 train-only 加验证早停，与最终重训主表不能直接相减；测试集结果不用于配置选择。
+- 24 页本地预览 [PPTX](slides/ODEBrain_LOCAL_PREVIEW_pending_publication.pptx) 与 [PDF](slides/ODEBrain_LOCAL_PREVIEW_pending_publication.pdf) 已生成并逐页渲染；正式浏览器截图已采集。公开仓库、Release 链接验证和最终版 PDF 正在收尾，完成前以预览文件的“待公开发布”标记为准。资源 ZIP 已通过全包与逐文件校验，并安装到干净克隆。全套代码测试 87 项通过。
 - 模型名 **ODEBrainInspiredHMS**；这是独立重写的 HMS 改造版，不是完整官方代码移植。[审计与偏离](docs/odebrain_adaptation.md)。
 
 ## 数据与研究边界
@@ -71,4 +71,4 @@ export PYSPARK_PYTHON="$PWD/.venv/bin/python"
 
 分类按冻结测试预测分别报告窗口平均、患者等权和 EEG 记录 `eeg_id` 等权 KL；七模型的三种加权混淆矩阵、逐类 precision/recall/F1、OVR AUC 与误报率在 [辅助指标](results/classification_weighted_metrics.json)，定义和复算命令见 [口径说明](docs/classification_weighted_metrics.md)。[最终模型配对区间](results/refit/paired_kl_intervals.json)按患者成组重采样，只描述预先固定配置的表现，不用于从测试集选择配置。图预测 MAE 是独立辅助任务；标准化 MAE/MSE 和逐频带误差不是 Kaggle 六分类评分要求。初训消融、初训分歧分析与最终重训主表的测试数值不能直接相减。
 
-24 页[可编辑 DRAFT PPTX](slides/ODEBrain_DRAFT_pending_experiments.pptx) 已用项目内本地 LibreOffice 转成 [DRAFT PDF](slides/ODEBrain_DRAFT_pending_experiments.pdf)，两者均为 24 页；见 [导出验证](docs/pdf_export.md)。这不是正式实验结果或最终提交 PDF。GitHub 仓库、权重访问地址与最终 PDF 均待正式实验产物和发布授权完成后补充；不会保留示例 URL 作为正式资源。HMS 数据由 Kaggle 标注 CC BY-NC 4.0，下载和再发布应遵守其当时条款；ODEBrain 官方代码为 MIT，来源与项目改造分别记录。
+24 页[本地预览 PPTX](slides/ODEBrain_LOCAL_PREVIEW_pending_publication.pptx) 与[本地预览 PDF](slides/ODEBrain_LOCAL_PREVIEW_pending_publication.pdf) 已由真实实验结果生成，正式截图、三臂消融和三种等权指标均通过证据门禁。预览版明确标有“待公开发布”，不能称为最终 PDF；公开仓库和 Release 的匿名 URL 验证后再生成最终版。旧 DRAFT 仅保留作为过程记录，见 [导出验证](docs/pdf_export.md)。HMS 数据由 Kaggle 标注 CC BY-NC 4.0；来源与再分发边界见 [公开资源说明](docs/public_resources.md)。

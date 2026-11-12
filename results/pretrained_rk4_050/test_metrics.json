@@ -1,0 +1,118 @@
+{
+  "n_windows": 22638,
+  "n_patients": 389,
+  "kl_window_mean": 1.1079076344651844,
+  "kl_patient_equal_mean": 1.178799647071978,
+  "macro_f1": 0.41711778494092827,
+  "confusion_matrix": [
+    [
+      2668,
+      187,
+      231,
+      133,
+      162,
+      782
+    ],
+    [
+      340,
+      743,
+      972,
+      60,
+      74,
+      741
+    ],
+    [
+      297,
+      276,
+      2452,
+      36,
+      159,
+      210
+    ],
+    [
+      373,
+      201,
+      69,
+      447,
+      1762,
+      906
+    ],
+    [
+      751,
+      193,
+      256,
+      608,
+      1612,
+      954
+    ],
+    [
+      528,
+      295,
+      305,
+      152,
+      607,
+      2096
+    ]
+  ],
+  "per_class": {
+    "seizure": {
+      "precision": 0.5382287673996369,
+      "recall": 0.6408839779005525,
+      "f1": 0.5850877192982455,
+      "support": 4163,
+      "ovr_auroc": 0.8508187697731514
+    },
+    "lpd": {
+      "precision": 0.3920844327176781,
+      "recall": 0.25358361774744026,
+      "f1": 0.30797927461139896,
+      "support": 2930,
+      "ovr_auroc": 0.7884474418662645
+    },
+    "gpd": {
+      "precision": 0.5722287047841307,
+      "recall": 0.714868804664723,
+      "f1": 0.6356448476992871,
+      "support": 3430,
+      "ovr_auroc": 0.9074732436557654
+    },
+    "lrda": {
+      "precision": 0.3112813370473538,
+      "recall": 0.11894624800425758,
+      "f1": 0.17212167886022334,
+      "support": 3758,
+      "ovr_auroc": 0.7968174532748217
+    },
+    "grda": {
+      "precision": 0.36837294332723947,
+      "recall": 0.3685413808870599,
+      "f1": 0.3684571428571428,
+      "support": 4374,
+      "ovr_auroc": 0.7618117230374764
+    },
+    "other": {
+      "precision": 0.3684303040956231,
+      "recall": 0.5262365051468743,
+      "f1": 0.4334160463192721,
+      "support": 3983,
+      "ovr_auroc": 0.7275255402332064
+    }
+  },
+  "kl_patient_bootstrap": {
+    "patient_equal_mean": 1.1787996470725177,
+    "ci95": [
+      1.0952987331254749,
+      1.2674458843325904
+    ],
+    "resampling_unit": "patient",
+    "n_boot": 1000,
+    "seed": 42
+  },
+  "split": "test",
+  "run_dir": "/export/home/limianchong/CSproject/artifacts/runs/ode_ablations_v1/pretrained_rk4_050",
+  "model": "odebrain_inspired_hms",
+  "split_hash": "f334b0e31f5faf520f85a2d4c79631caf7edef2102460a8bcd629fc2a699a82f",
+  "smoke_subset": false,
+  "evaluation_scope": "full_split",
+  "metadata_eeg_coverage": 0.9959037977646439
+}

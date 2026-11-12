@@ -1,0 +1,37 @@
+{
+  "schema_version": "ui_capture_v1",
+  "experiment_status": "formal",
+  "split_hash": "f334b0e31f5faf520f85a2d4c79631caf7edef2102460a8bcd629fc2a699a82f",
+  "image": "results/formal_ui.png",
+  "image_sha256": "e38437fe4df7bd16c8936a98867b79e2b19a24a1805cdd03287b24678d65fc29",
+  "captured_at_utc": "2026-11-12T05:15:25.494031+00:00",
+  "page": "ODE 动力学",
+  "url": "http://127.0.0.1:8502",
+  "results_root": "results",
+  "chrome_version": "Google Chrome 78.0.3904.70",
+  "cjk_font": "WenQuanYi Zen Hei Mono",
+  "rendered_charts": 4,
+  "render_probe": {
+    "headings": [
+      "HMS × ODEBrain：真实实验结果浏览",
+      "4 · ODE 动力学"
+    ],
+    "charts": 5,
+    "drawn_charts": 4,
+    "skeletons": 0,
+    "body_width": 1600,
+    "body_height": 0
+  },
+  "image_geometry": {
+    "width": 1600,
+    "height": 1000,
+    "bytes": 158761,
+    "grayscale_stddev": 18.29
+  },
+  "formal_gate": {
+    "passed": true,
+    "input_bundle": "results/formal_delivery_inputs.json",
+    "reasons": []
+  },
+  "smoke_watermark_added": false
+}

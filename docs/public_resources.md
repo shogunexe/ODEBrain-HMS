@@ -9,7 +9,7 @@
 - 消融预训练和三条分类臂的 `best.pt`、生成的 YAML 配置、实际配置、图归一化参数、完成记录、逐轮历史和窗口 ID 快照。资源清单逐一校验完成记录中的权重、源配置和窗口快照 SHA256；其分类测试结果按独立消融协议报告。
 - `PUBLIC_RESOURCE_MANIFEST.json` 逐文件记录路径、大小和 SHA256；`PUBLIC_RESOURCE_NOTICE.txt`、根目录的 [LICENSE.md](../LICENSE.md) 与 [THIRD_PARTY_NOTICES.md](../THIRD_PARTY_NOTICES.md) 记录项目权利声明和第三方来源。
 
-资源包在消融第三臂完成后重新构建，最终字节数、文件数和 SHA256 以发布后的清单为准。资源包位于 `artifacts/release/`，该目录不进入 Git；公开下载地址待正式发布后填写并实测。
+本地已冻结 `odebrain_hms_resources_v1.zip`：**20,164,756 字节**、165 个有效载荷文件，SHA256 为 `6ed72bc556f6a9ceb2928bc97c143e703c99b956c1df512418ecf0e1b1f6b6ce`。已经逐文件校验并安装进干净克隆。资源包位于 `artifacts/release/`，该目录不进入 Git；公开下载地址待正式发布后填写并实测。
 
 ```bash
 export LD_LIBRARY_PATH=/export/usr/python/3.8.9/lib:${LD_LIBRARY_PATH:-}
