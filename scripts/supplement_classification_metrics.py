@@ -134,7 +134,8 @@ def validate_kl(views, reported):
             raise ValueError("Recomputed %s differs from formal comparison" % key)
 
 
-def supplement(manifest_path, deep_path, spark_path, spark_record_path, output_path):
+def supplement(manifest_path, deep_path, spark_path, spark_record_path, output_path,
+               deep_results_dir=None):
     manifest_path, deep_path, spark_path, spark_record_path, output_path = map(
         lambda path: Path(path).resolve(),
         (manifest_path, deep_path, spark_path, spark_record_path, output_path))
@@ -169,9 +170,11 @@ def supplement(manifest_path, deep_path, spark_path, spark_record_path, output_p
     deep_rows = {row["name"]: row for row in deep.get("rows", [])}
     if set(deep_rows) != set(DEEP_MODELS):
         raise ValueError("Final deep comparison lacks exactly five models")
+    deep_results_dir = (Path(deep_results_dir).resolve() if deep_results_dir is not None
+                        else deep_path.parent)
     for kind, names in (("deep", DEEP_MODELS), ("spark", ("lr", "rf"))):
         for name in names:
-            path = (deep_path.parent / name / "test_predictions.csv" if kind == "deep"
+            path = (deep_results_dir / Path(deep_rows[name]["run_dir"]).name / "test_predictions.csv" if kind == "deep"
                     else spark_path.parent / (name + "_test_predictions"))
             predictions = pd.read_csv(path) if kind == "deep" else pd.read_parquet(path)
             targets, scores, hard, patients, records = checked_arrays(predictions, test, kind)
@@ -210,8 +213,10 @@ def main():
     parser.add_argument("--spark", default="results/spark_baselines/metrics.json")
     parser.add_argument("--spark-record", default="results/spark_baselines/eeg_record_equal_kl.json")
     parser.add_argument("--output", default="results/classification_weighted_metrics.json")
+    parser.add_argument("--deep-results-dir", help="Directory of refit test prediction folders")
     args = parser.parse_args()
-    result = supplement(args.manifest, args.deep, args.spark, args.spark_record, args.output)
+    result = supplement(args.manifest, args.deep, args.spark, args.spark_record,
+                        args.output, args.deep_results_dir)
     print(json.dumps({"output": str(Path(args.output).resolve()), "models": list(result["models"]),
                       "n_windows": result["n_windows"], "n_patients": result["n_patients"],
                       "n_eeg_records": result["n_eeg_records"]}, indent=2))

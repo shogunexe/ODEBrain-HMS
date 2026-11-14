@@ -1,5 +1,18 @@
 # 公开案例图与最终权重资源包
 
+## ODEBrain v2 资源
+
+新版 `github_trajectory_v2` 的 [独立资源包](https://github.com/shogunexe/ODEBrain-HMS/releases/download/v2/odebrain_hms_v2_resources.zip)对应[新版结果说明](odebrain_github_v2_results.md)，汇报 PPT 由汇报方本地保存。包内有正式六分类和图预测检查点、各自的配置与图归一化参数、两份 YAML、四份冻结测试汇总 JSON、六类可视化使用的训练 PCA 参数及逐文件 SHA256 清单；不含原始 EEG、逐窗口预测文件或患者窗口缓存。资源包大小为 **4,725,070 字节**，SHA256 为 `1f0b6aca60844bb044945f03764dc08db6d61ea817fd47ce8e91765683246036`；六分类权重 SHA256 为 `4a0cfe06ccfd221f10779db3498b5d1060d1cc5c82535113cfe52ff9f8f8fb40`。包内结果只用于 HMS 适配版，不能与下文 v1 权重混用。
+
+```bash
+python scripts/package_odebrain_v2_resources.py build
+python scripts/package_odebrain_v2_resources.py verify \
+  --archive artifacts/release/odebrain_hms_v2_resources.zip
+sha256sum artifacts/release/odebrain_hms_v2_resources.zip
+```
+
+新版实验结果和限制见 [ODEBrain v2 结果说明](odebrain_github_v2_results.md)。以下各节记录的是旧版 `legacy_v1` 的 v1 资源包。
+
 正式代码仓库中的 `results/dynamics_refit/result_index.json` 和六份 `case.json` 记录了案例来源与图名。PNG、SVG 和模型权重由独立 ZIP 交付。这样可在干净克隆中恢复静态图，并用 SHA256 核对全部文件。资源包不含 Kaggle 原始文件、EEG 窗口数组 `case.npz` 或 PCA 数组 `train_pca.npz`。
 
 ## 固定内容

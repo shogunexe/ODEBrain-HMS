@@ -184,7 +184,9 @@ def load_checkpoint(path: Union[str, Path], model: nn.Module,
     if restore_rng:
         torch.set_rng_state(checkpoint["rng_cpu"].cpu())
         if torch.cuda.is_available() and checkpoint.get("rng_cuda") is not None:
-            torch.cuda.set_rng_state_all(checkpoint["rng_cuda"])
+            # torch.load(map_location="cuda") also moves serialized RNG states.
+            # CUDA generators require CPU ByteTensors when restoring them.
+            torch.cuda.set_rng_state_all([state.cpu() for state in checkpoint["rng_cuda"]])
     return checkpoint
 
 

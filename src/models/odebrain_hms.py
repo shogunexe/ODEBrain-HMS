@@ -45,6 +45,67 @@ class _VectorField(nn.Module):
         return self.net(z)
 
 
+class _GithubODEFunc(nn.Module):
+    """ODEBRAIN commit 31e251e's ODEFunc, with a diagnostic call counter.
+
+    The upstream vector field is an autonomous three-layer Tanh MLP with
+    N(0, 0.1) linear weights and zero biases. It has no gate or decay term.
+    """
+
+    def __init__(self, ode_input: int, feat_dim: int):
+        super().__init__()
+        self.ode_input_size = ode_input
+        self.feat_dim = feat_dim
+        self.net = nn.Sequential(
+            nn.Linear(ode_input, feat_dim), nn.Tanh(),
+            nn.Linear(feat_dim, feat_dim), nn.Tanh(),
+            nn.Linear(feat_dim, ode_input),
+        )
+        for module in self.net.modules():
+            if isinstance(module, nn.Linear):
+                nn.init.normal_(module.weight, mean=0, std=0.1)
+                nn.init.constant_(module.bias, val=0)
+        self.nfe = 0
+
+    def forward(self, t: Tensor, y: Tensor) -> Tensor:
+        self.nfe += 1
+        return self.net(y)
+
+
+class _GithubRawCNN(nn.Module):
+    """Upstream CNNEncoder adapted from 12 to variable whole-second EEG windows.
+
+    The two Conv2d/BatchNorm/ReLU/MaxPool blocks and 4800-to-36 FC match
+    upstream. Adaptive pooling restores its fixed 3x50 FC input when HMS
+    provides 50 seconds for classification or 5 seconds for forecasting.
+    """
+
+    def __init__(self, feature_dim: int = 36, samples_per_second: int = 200):
+        super().__init__()
+        self.samples_per_second = samples_per_second
+        self.conv1 = nn.Conv2d(1, 16, kernel_size=(3, 3), padding=(1, 1))
+        self.bn1 = nn.BatchNorm2d(16)
+        self.pool1 = nn.MaxPool2d(kernel_size=(2, 2))
+        self.conv2 = nn.Conv2d(16, 32, kernel_size=(3, 3), padding=(1, 1))
+        self.bn2 = nn.BatchNorm2d(32)
+        self.pool2 = nn.MaxPool2d(kernel_size=(2, 2))
+        self.adapt = nn.AdaptiveAvgPool2d((3, 50))
+        self.fc = nn.Linear(32 * 3 * 50, feature_dim)
+
+    def forward(self, raw_eeg: Tensor) -> Tensor:
+        if raw_eeg.ndim != 3 or raw_eeg.shape[-1] % self.samples_per_second:
+            raise ValueError("raw EEG must be [B,N,whole seconds at 200 Hz]")
+        batch, nodes, samples = raw_eeg.shape
+        if samples < 4 * self.samples_per_second:
+            raise ValueError("raw CNN requires at least four seconds of EEG")
+        x = raw_eeg.reshape(batch * nodes, 1, samples // self.samples_per_second,
+                            self.samples_per_second)
+        x = self.pool1(F.relu(self.bn1(self.conv1(x))))
+        x = self.pool2(F.relu(self.bn2(self.conv2(x))))
+        x = self.adapt(x).reshape(batch * nodes, -1)
+        return self.fc(x).reshape(batch, nodes, -1)
+
+
 class ODEBrainInspiredHMS(nn.Module):
     """Causal graph forecast with a six-class HMS classification head.
 
@@ -63,12 +124,18 @@ class ODEBrainInspiredHMS(nn.Module):
 
     def __init__(self, node_features: int, num_nodes: int, hidden_dim: int = 64,
                  raw_dim: int = 32, num_classes: int = 6,
-                 rk4_step_seconds: float = 0.25, dropout: float = 0.1):
+                 rk4_step_seconds: float = 0.25, dropout: float = 0.1,
+                 architecture: str = "legacy_v1"):
         super().__init__()
         if min(node_features, num_nodes, hidden_dim, raw_dim, num_classes) <= 0:
             raise ValueError("all dimensions must be positive")
         if rk4_step_seconds <= 0:
             raise ValueError("rk4_step_seconds must be positive")
+        if architecture not in ("legacy_v1", "github_trajectory_v2"):
+            raise ValueError("unsupported ODEBrain HMS architecture")
+        if architecture == "github_trajectory_v2" and raw_dim != 36:
+            raise ValueError("GitHub CNN path requires raw_dim=36")
+        self.architecture = architecture
         self.node_features = node_features
         self.num_nodes = num_nodes
         self.hidden_dim = hidden_dim
@@ -78,15 +145,24 @@ class ODEBrainInspiredHMS(nn.Module):
         self.edge_weight = nn.Linear(hidden_dim, 1)
         self.graph_conv1 = _GraphConv(hidden_dim, hidden_dim)
         self.graph_conv2 = _GraphConv(hidden_dim, hidden_dim)
-        self.raw_encoder = nn.Sequential(
-            nn.Conv1d(1, raw_dim, kernel_size=15, stride=4, padding=7),
-            nn.GELU(), nn.Conv1d(raw_dim, raw_dim, kernel_size=7, stride=2, padding=3),
-            nn.GELU(), nn.AdaptiveAvgPool1d(1), nn.Flatten(),
-        )
-        self.vector_field = _VectorField(hidden_dim + raw_dim)
+        if architecture == "github_trajectory_v2":
+            self.raw_encoder = _GithubRawCNN(feature_dim=raw_dim)
+            self.vector_field = _GithubODEFunc(hidden_dim + raw_dim,
+                                                hidden_dim + raw_dim)
+        else:
+            self.raw_encoder = nn.Sequential(
+                nn.Conv1d(1, raw_dim, kernel_size=15, stride=4, padding=7),
+                nn.GELU(), nn.Conv1d(raw_dim, raw_dim, kernel_size=7, stride=2, padding=3),
+                nn.GELU(), nn.AdaptiveAvgPool1d(1), nn.Flatten(),
+            )
+            self.vector_field = _VectorField(hidden_dim + raw_dim)
         self.forecast_head = nn.Linear(hidden_dim + raw_dim, node_features)
-        self.classifier = nn.Sequential(nn.Dropout(dropout),
-                                        nn.Linear(hidden_dim + raw_dim, num_classes))
+        if architecture == "github_trajectory_v2":
+            self.classifier = nn.Sequential(nn.Dropout(dropout), nn.ReLU(),
+                                            nn.Linear(hidden_dim + raw_dim, num_classes))
+        else:
+            self.classifier = nn.Sequential(nn.Dropout(dropout),
+                                            nn.Linear(hidden_dim + raw_dim, num_classes))
 
     def _validate(self, batch: Dict[str, Tensor]) -> Tuple[Tensor, Tensor, Tensor]:
         nodes = batch["graph_nodes"]
@@ -129,13 +205,17 @@ class ODEBrainInspiredHMS(nn.Module):
         g = torch.tanh(self.graph_conv1(node_h, weights, valid_nodes))
         g = torch.tanh(self.graph_conv2(g, weights, valid_nodes))
         if raw_eeg is None:
-            raw = nodes.new_zeros(b, n, self.raw_encoder[0].out_channels)
+            raw = nodes.new_zeros(b, n, 36 if self.architecture == "github_trajectory_v2"
+                                  else self.raw_encoder[0].out_channels)
         else:
             if raw_eeg.ndim != 3 or raw_eeg.shape[0] != b or raw_eeg.shape[1] != n:
                 raise ValueError("raw EEG must have shape [B,N,T]")
             if raw_eeg.shape[2] == 0:
                 raise ValueError("raw EEG must contain samples")
-            raw = self.raw_encoder(raw_eeg.reshape(b*n, 1, -1)).reshape(b, n, -1)
+            if self.architecture == "github_trajectory_v2":
+                raw = self.raw_encoder(raw_eeg)
+            else:
+                raw = self.raw_encoder(raw_eeg.reshape(b*n, 1, -1)).reshape(b, n, -1)
             raw = raw * valid_nodes.unsqueeze(-1)
         return torch.cat([g, raw], dim=-1), valid_nodes, weights
 
@@ -145,6 +225,11 @@ class ODEBrainInspiredHMS(nn.Module):
         if bool(torch.any(times_s[1:] <= times_s[:-1])):
             raise ValueError("times_s must be strictly increasing")
         self.vector_field.nfe = 0
+        if self.architecture == "github_trajectory_v2":
+            from torchdiffeq import odeint_adjoint
+            trajectory = odeint_adjoint(self.vector_field, z0.float(), times_s,
+                                       method="rk4")
+            return trajectory.transpose(0, 1)
         states = [z0]
         z = z0.float()  # Keep integration in FP32 under autocast.
         field = self.vector_field
@@ -196,15 +281,36 @@ class ODEBrainInspiredHMS(nn.Module):
             future_times = requested[requested > 0]
         class_time = torch.tensor([1.], device=nodes.device)
         zero_time = torch.tensor([0.], device=nodes.device)
-        if return_dynamics:
+        if self.architecture == "github_trajectory_v2":
+            # Match upstream's 12 RK4 trajectory samples over [0, 1]. The
+            # classifier consumes their time mean, not the final state.
+            class_grid = torch.linspace(0., 1., 12, device=nodes.device)
+            if return_dynamics:
+                max_time = float(future_times.max().item()) if len(future_times) else 1.
+                extra = (torch.arange(1. + self.rk4_step_seconds, max_time,
+                                      self.rk4_step_seconds, device=nodes.device)
+                         if max_time > 1. else zero_time[:0])
+                times = torch.unique(torch.cat([class_grid, extra, future_times]),
+                                     sorted=True)
+            else:
+                times = class_grid
+        elif return_dynamics:
             times = torch.unique(torch.cat([zero_time, class_time, future_times]), sorted=True)
         else:
             times = torch.cat([zero_time, class_time])
         trajectory = self._integrate(z0, times)
-        class_index = int(torch.searchsorted(times, class_time)[0].item())
-        class_nodes = trajectory[:, class_index]
-        pooled = (class_nodes * valid_nodes.unsqueeze(-1)).sum(dim=1) / valid_nodes.sum(dim=1, keepdim=True).clamp(min=1)
-        logits = self.classifier(pooled)
+        if self.architecture == "github_trajectory_v2":
+            class_indices = torch.searchsorted(times, class_grid)
+            class_nodes = trajectory.index_select(1, class_indices).mean(dim=1)
+        else:
+            class_index = int(torch.searchsorted(times, class_time)[0].item())
+            class_nodes = trajectory[:, class_index]
+        if self.architecture == "github_trajectory_v2":
+            node_logits = self.classifier(class_nodes)
+            logits = (node_logits * valid_nodes.unsqueeze(-1)).sum(dim=1) / valid_nodes.sum(dim=1, keepdim=True).clamp(min=1)
+        else:
+            pooled = (class_nodes * valid_nodes.unsqueeze(-1)).sum(dim=1) / valid_nodes.sum(dim=1, keepdim=True).clamp(min=1)
+            logits = self.classifier(pooled)
         if not return_dynamics:
             return logits
         future_indices = torch.searchsorted(times, future_times)

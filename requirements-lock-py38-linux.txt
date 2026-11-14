@@ -84,6 +84,7 @@ threadpoolctl==3.5.0
 toml==0.10.2
 tomli==2.5.0
 torch==2.0.1
+torchdiffeq==0.2.5
 tornado==6.4.2
 tqdm==4.70.1
 triton==2.0.0

@@ -1,0 +1,19 @@
+{
+  "schema_version": "odebrain_class_local_fields_v1",
+  "checkpoint_sha256": "4a0cfe06ccfd221f10779db3498b5d1060d1cc5c82535113cfe52ff9f8f8fb40",
+  "manifest_sha256": "685b4ee306a37b73ce01a3c4671eeed11850c6c0ef2c6c11131c79646d7f09c0",
+  "class_counts": {
+    "seizure": 16,
+    "lpd": 16,
+    "gpd": 16,
+    "lrda": 16,
+    "grda": 16,
+    "other": 16
+  },
+  "field": "one shared autonomous f(z), six parallel PCA planes through class mean full-dimensional initial states",
+  "axis": "relative to each class's mean initial state, common train-only PCA basis and equal span",
+  "not_class_specific_models": true,
+  "max_abs_axis": 6.9537981862818885,
+  "mean_pairwise_field_difference": 0.8893597193740023,
+  "mean_pairwise_anchor_residual_distance": 2.452473558660965
+}

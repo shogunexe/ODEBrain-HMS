@@ -440,8 +440,19 @@ def evaluate_forecast(ode_run_dir, gru_run_dir, manifest_path, output_path,
                     raise ValueError("%s prediction does not match target horizon shape" % name)
                 if name == "graph_gru" and tuple(float(x) for x in extra["future_times_s"].tolist()) != tuple(HORIZONS):
                     raise ValueError("GraphGRU forecast times differ from target times")
-                if name == "odebrain_inspired_hms" and tuple(float(x) for x in extra["times_s"].tolist()) != (0.0,) + tuple(HORIZONS):
-                    raise ValueError("ODE trajectory times differ from target times")
+                if name == "odebrain_inspired_hms":
+                    times = extra["times_s"]
+                    expected = ((0.0,) + tuple(HORIZONS) if
+                                run["model"].architecture == "legacy_v1" else None)
+                    if expected is not None and tuple(float(x) for x in times.tolist()) != expected:
+                        raise ValueError("ODE trajectory times differ from target times")
+                    if expected is None:
+                        class_grid = torch.linspace(0., 1., 12, device=times.device)
+                        if not torch.allclose(times[:12], class_grid) or not all(
+                                bool(torch.any(torch.isclose(times, torch.tensor(h, device=times.device,
+                                                                                 dtype=times.dtype))))
+                                for h in HORIZONS):
+                            raise ValueError("ODE trajectory lacks class grid or forecast horizons")
                 predictions[name] = prediction
             batch_windows = [str(x) for x in batch["window_id"]]
             if any(window_id not in eeg_by_window for window_id in batch_windows):

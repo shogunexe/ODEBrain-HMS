@@ -35,16 +35,21 @@ def load_trained_model(checkpoint_path, device="cpu", rk4_step_seconds=None):
         raise ValueError("Checkpoint needs model or state_dict")
     hidden = int(state["node_encoder.weight_ih"].shape[0] // 3)
     features = int(state["node_encoder.weight_ih"].shape[1])
-    raw_dim = int(state["raw_encoder.0.weight"].shape[0])
-    classes = int(state["classifier.1.weight"].shape[0])
     config = checkpoint.get("config", {})
     model_config = config.get("model", {}) if isinstance(config, dict) else {}
     nested = model_config.get("kwargs", {}) if isinstance(model_config, dict) else {}
+    architecture = nested.get("architecture", "legacy_v1")
+    if architecture == "github_trajectory_v2":
+        raw_dim = int(state["raw_encoder.fc.weight"].shape[0])
+        classes = int(state["classifier.2.weight"].shape[0])
+    else:
+        raw_dim = int(state["raw_encoder.0.weight"].shape[0])
+        classes = int(state["classifier.1.weight"].shape[0])
     if rk4_step_seconds is None:
         rk4_step_seconds = nested.get("rk4_step_seconds", 0.25)
     model = ODEBrainInspiredHMS(node_features=features, num_nodes=len(ELECTRODES),
                                 hidden_dim=hidden, raw_dim=raw_dim,
-                                num_classes=classes,
+                                num_classes=classes, architecture=architecture,
                                 rk4_step_seconds=rk4_step_seconds)
     model.load_state_dict(state, strict=True)
     model.to(device).eval()
@@ -227,6 +232,33 @@ def _write_case_figures(case_dir, arrays, metadata):
     ax.annotate("start", p[0, :2]); ax.annotate("end", p[-1, :2])
     ax.set(xlabel="train-PCA 1", ylabel="train-PCA 2", title="Observed latent trajectory and du/dt")
     save(fig, "trajectory_direction")
+
+    # A vector field is high dimensional. Show its local, linearly projected
+    # values only at the states actually visited by this sample, never a
+    # fabricated grid of off-trajectory EEG states.
+    fig, axes = plt.subplots(1, 2, figsize=(12, 5))
+    selected = np.unique(np.linspace(0, len(time) - 1, min(len(time), 16), dtype=int))
+    sc = axes[0].scatter(p[:, 0], p[:, 1], c=time, cmap="viridis", s=25, zorder=2)
+    axes[0].plot(p[:, 0], p[:, 1], color="#84929a", linewidth=1, zorder=1)
+    axes[0].quiver(p[selected, 0], p[selected, 1], v[selected, 0], v[selected, 1],
+                   angles="xy", scale_units="xy", scale=None, color="#a21d37",
+                   width=.004, zorder=3)
+    axes[0].annotate("t=0", p[0, :2], xytext=(7, 7), textcoords="offset points")
+    axes[0].annotate("t=%.1f s" % time[-1], p[-1, :2], xytext=(7, -13),
+                     textcoords="offset points")
+    axes[0].set(xlabel="Train-only PCA 1", ylabel="Train-only PCA 2",
+                title="Visited states and projected f(z)")
+    fig.colorbar(sc, ax=axes[0], label="ODE time after observation cutoff (s)")
+    axes[1].plot(time, arrays["speed_per_s"], color="#a21d37", lw=1.8)
+    axes[1].axvspan(0, 1, color="#f1d9de", alpha=.8,
+                    label="12-point class-head interval")
+    for horizon in arrays["future_times_s"]:
+        axes[1].axvline(float(horizon), color="#447c94", linestyle="--", alpha=.65)
+    axes[1].set(xlabel="ODE time after observation cutoff (s)",
+                ylabel="||f(z)|| over valid nodes", title="Speed along visited path")
+    axes[1].legend(frameon=False, fontsize=8)
+    fig.suptitle("Learned latent ODE; arrows are local derivatives on the observed trajectory")
+    save(fig, "ode_field_trajectory")
 
     fig, axes = plt.subplots(3, 1, figsize=(8, 8), sharex=False)
     axes[0].plot(time, arrays["speed_per_s"], "o-")
@@ -465,6 +497,7 @@ def export_dynamics(checkpoint_path, manifest_csv, output_dir, device="cpu",
         np.savez_compressed(str(case_dir / "case.npz"), **arrays)
         meta = {
             "schema_version": "ode_case_v1", "provenance": provenance,
+            "architecture": model.architecture,
             "model_id": model_id, "checkpoint_sha256": sha256_file(checkpoint_path),
             "training_lineage": lineage,
             "manifest_file_coverage": file_coverage,
@@ -502,6 +535,7 @@ def export_dynamics(checkpoint_path, manifest_csv, output_dir, device="cpu",
                       "metadata": str((case_dir / "case.json").relative_to(output_dir)),
                       "data": str((case_dir / "case.npz").relative_to(output_dir))})
     index = {"schema_version": "ode_results_v1", "provenance": provenance,
+             "architecture": model.architecture,
              "model_id": model_id, "split_hash": split_hash,
              "manifest_file_coverage": file_coverage,
              "manifest_rows": int(len(table)), "source_metadata_rows": full_metadata_rows,

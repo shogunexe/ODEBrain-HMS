@@ -1,0 +1,18 @@
+{
+  "schema_version": "odebrain_six_class_streamfield_v1",
+  "checkpoint_sha256": "4a0cfe06ccfd221f10779db3498b5d1060d1cc5c82535113cfe52ff9f8f8fb40",
+  "manifest_sha256": "685b4ee306a37b73ce01a3c4671eeed11850c6c0ef2c6c11131c79646d7f09c0",
+  "pca_split_hash": "f334b0e31f5faf520f85a2d4c79631caf7edef2102460a8bcd629fc2a699a82f",
+  "field": "one autonomous f(z); local views centred on six held-out test paths",
+  "background": "norm of model field projected to train-fitted 2D PCA plane",
+  "overlays": "first second of each held-out sample's model latent trajectory",
+  "local_width_pca_units": 9.0,
+  "window_ids": [
+    "row_100783",
+    "row_101324",
+    "row_100689",
+    "row_103388",
+    "row_100197",
+    "row_100107"
+  ]
+}

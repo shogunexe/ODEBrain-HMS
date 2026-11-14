@@ -91,7 +91,8 @@ def paired_intervals(delta, patient_ids, eeg_ids, n_boot=5000, seed=42):
             "window_equal": estimate(delta.mean(), window_samples)}
 
 
-def analyze(manifest_path, comparison_path, results_dir, n_boot=5000, seed=42):
+def analyze(manifest_path, comparison_path, results_dir, n_boot=5000, seed=42,
+            ode_results_name="odebrain_inspired_hms"):
     manifest_path = Path(manifest_path).resolve()
     comparison_path = Path(comparison_path).resolve()
     results_dir = Path(results_dir).resolve()
@@ -134,7 +135,8 @@ def analyze(manifest_path, comparison_path, results_dir, n_boot=5000, seed=42):
     kl_by_model = {}
     evidence = {}
     for name in MODELS:
-        path = results_dir / name / "test_predictions.csv"
+        directory = ode_results_name if name == ODE else name
+        path = results_dir / directory / "test_predictions.csv"
         row = by_name[name]
         digest = sha256(path)
         require(row.get("test_predictions_sha256") == digest,
@@ -180,6 +182,13 @@ def analyze(manifest_path, comparison_path, results_dir, n_boot=5000, seed=42):
                    paired_intervals(kl_by_model[ODE] - kl_by_model[name],
                                     patients, eegs, n_boot, seed)
                    for name in MODELS if name != ODE}
+    model_intervals = {}
+    for name in MODELS:
+        views = paired_intervals(kl_by_model[name], patients, eegs, n_boot, seed)
+        model_intervals[name] = {
+            unit: {"estimate": values["difference"], "ci95": values["ci95"]}
+            for unit, values in views.items() if unit in
+            ("window_equal", "eeg_record_equal", "patient_equal")}
     return {"schema_version": "hms_paired_refit_kl_v1", "status": "formal",
             "training_protocol": "train_val_fixed_epoch_refit", "split": "test",
             "purpose": "descriptive_post_selection_evaluation_only",
@@ -197,7 +206,8 @@ def analyze(manifest_path, comparison_path, results_dir, n_boot=5000, seed=42):
             "final_comparison_sha256": sha256(comparison_path),
             "n_windows": int(len(test)), "n_patients": int(test.patient_id.nunique()),
             "n_eeg_records": int(test.eeg_id.nunique()),
-            "runs": evidence, "comparisons": comparisons}
+            "runs": evidence, "comparisons": comparisons,
+            "model_intervals": model_intervals}
 
 
 def main(argv=None):
@@ -205,14 +215,18 @@ def main(argv=None):
     parser.add_argument("--manifest", default="data/curated/split_manifest.csv")
     parser.add_argument("--comparison", default="results/refit/final_comparison.json")
     parser.add_argument("--results-dir", default="results/refit")
+    parser.add_argument("--ode-results-name", default="odebrain_inspired_hms")
     parser.add_argument("--output", default="results/refit/paired_kl_intervals.json")
     parser.add_argument("--n-boot", type=int, default=5000)
     parser.add_argument("--seed", type=int, default=42)
     args = parser.parse_args(argv)
+    if Path(args.ode_results_name).name != args.ode_results_name or args.ode_results_name in ("", ".", ".."):
+        parser.error("--ode-results-name must be a directory name")
     relative_to_root = lambda value: Path(value) if Path(value).is_absolute() else ROOT / value
     try:
         result = analyze(relative_to_root(args.manifest), relative_to_root(args.comparison),
-                         relative_to_root(args.results_dir), args.n_boot, args.seed)
+                         relative_to_root(args.results_dir), args.n_boot, args.seed,
+                         args.ode_results_name)
         output = relative_to_root(args.output)
         output.parent.mkdir(parents=True, exist_ok=True)
         temp = output.with_suffix(output.suffix + ".tmp")

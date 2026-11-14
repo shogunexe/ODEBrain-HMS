@@ -121,11 +121,16 @@ def _datasets(config, smoke=False, normalizer=None):
     path = config.get("data", {}).get("manifest", "data/curated/split_manifest.csv")
     task = config.get("data", {}).get("task", "classification")
     include_spectrogram, include_graph = input_modalities(config["model"]["name"])
+    cache_dir = config.get("data", {}).get("graph_cache_dir")
+    # Forecast smoke must sample eligible histories; otherwise its first
+    # patient-stratified rows can fail before the model is exercised.
+    smoke_cache = cache_dir if (smoke and task == "forecast" and cache_dir and
+                                Path(cache_dir).is_dir()) else None
     kwargs = {"task": task, "max_rows": 12 if smoke else None,
               "forecast_cut_seconds": config.get("data", {}).get("forecast_cut_seconds", 5),
               "forecast_horizons": config.get("data", {}).get("forecast_horizons", (1, 3, 5)),
               "include_spectrogram": include_spectrogram, "include_graph": include_graph,
-              "graph_cache_dir": None if smoke else config.get("data", {}).get("graph_cache_dir")}
+              "graph_cache_dir": smoke_cache if smoke else cache_dir}
     train = HMSWindowDataset(path, "train", **kwargs)
     val = HMSWindowDataset(path, "val", **kwargs)
     if len(train) == 0 or len(val) == 0:
@@ -158,6 +163,28 @@ def train(args):
         checkpoint_path = Path(args.init_checkpoint).resolve()
         config["init_checkpoint"] = str(checkpoint_path)
         config["init_checkpoint_sha256"] = file_sha256(checkpoint_path)
+    if args.graph_normalizer:
+        normalizer_source = Path(args.graph_normalizer).resolve()
+        source_config_path = normalizer_source.parent / "config.json"
+        if not normalizer_source.is_file() or not source_config_path.is_file():
+            raise FileNotFoundError("Normalizer source requires graph_normalizer.npz and config.json")
+        source_config = json.loads(source_config_path.read_text(encoding="utf-8"))
+        source_data = source_config.get("data", {})
+        target_data = config.get("data", {})
+        same_task = (source_data.get("task", "classification") ==
+                     target_data.get("task", "classification") and
+                     source_data.get("graph_cache_dir") == target_data.get("graph_cache_dir"))
+        forecast_to_class = (source_data.get("task") == "forecast" and
+                             target_data.get("task", "classification") == "classification" and
+                             source_data.get("graph_cache_dir") == "data/training/graph_forecast_v2" and
+                             target_data.get("graph_cache_dir") == "data/training/graph_classification")
+        same_window_rules = all(source_data.get(key) == target_data.get(key)
+                                for key in ("forecast_cut_seconds", "forecast_horizons"))
+        if (source_config.get("manifest_sha256") != config["manifest_sha256"] or
+                not same_window_rules or not (same_task or forecast_to_class)):
+            raise ValueError("Normalizer source was fitted for another manifest or graph task")
+        config["normalizer_source_path"] = str(normalizer_source)
+        config["normalizer_source_sha256"] = file_sha256(normalizer_source)
     training = config["training"]
     seed = int(args.seed)
     np.random.seed(seed)
@@ -169,8 +196,21 @@ def train(args):
         if source.is_file():
             values = np.load(source)
             init_normalizer = values["mean"], values["std"]
-    train_data, val_data, mean, std = _datasets(config, args.smoke, normalizer=init_normalizer)
+    if args.graph_normalizer:
+        with np.load(config["normalizer_source_path"], allow_pickle=False) as values:
+            init_normalizer = values["mean"].copy(), values["std"].copy()
     run_dir = Path(args.run_dir or ("artifacts/runs/" + config["model"]["name"] + "_" + time.strftime("%Y%m%d_%H%M%S")))
+    existing_config = run_dir / "config.json"
+    existing_normalizer = run_dir / "graph_normalizer.npz"
+    if existing_config.is_file() and existing_normalizer.is_file():
+        previous = json.loads(existing_config.read_text(encoding="utf-8"))
+        before_snapshot = {k: v for k, v in previous.items()
+                           if k != "window_snapshot_sha256"}
+        if before_snapshot != config:
+            raise ValueError("Existing run directory has a different config or manifest")
+        with np.load(existing_normalizer, allow_pickle=False) as values:
+            init_normalizer = values["mean"].copy(), values["std"].copy()
+    train_data, val_data, mean, std = _datasets(config, args.smoke, normalizer=init_normalizer)
     run_dir.mkdir(parents=True, exist_ok=True)
     window_snapshot = {name: dataset.rows.window_id.astype(str).tolist()
                        for name, dataset in (("train", train_data), ("val", val_data))}
@@ -326,6 +366,7 @@ def main():
     p.add_argument("--config", required=True); p.add_argument("--run-dir"); p.add_argument("--device")
     p.add_argument("--seed", type=int, default=42); p.add_argument("--workers", type=int, default=0)
     p.add_argument("--resume"); p.add_argument("--init-checkpoint"); p.add_argument("--smoke", action="store_true")
+    p.add_argument("--graph-normalizer", help="Reuse a verified normalizer from a run with the same manifest and graph task")
     p = sub.add_parser("evaluate")
     p.add_argument("--run-dir", required=True); p.add_argument("--split", choices=("val", "test"), default="val")
     p.add_argument("--device"); p.add_argument("--batch-size", type=int, default=8); p.add_argument("--workers", type=int, default=0)

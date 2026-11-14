@@ -1,8 +1,14 @@
 # Spark 与 ODEBrain-inspired HMS EEG 分析系统
 
-课程项目：《基于 Spark 与 ODEBrain 连续动力学建模的 EEG 异常脑电活动分析与可视化系统》。当前目录是实施中的研究代码。**没有真实 HMS 实验结果时，不应把合成测试当成分类表现。**
+课程项目：《基于 Spark 与 ODEBrain 连续动力学建模的 EEG 异常脑电活动分析与可视化系统》。本仓库同时保留初版与经官方源码核查后的 `github_trajectory_v2` 实验；两版权重和指标不能混用。
 
-## 当前状态（2026-11-12 13:35 Asia/Shanghai）
+## 最新汇报与 ODEBrain v2（2026-11-14）
+
+- [新版结果与解释边界](docs/odebrain_github_v2_results.md)列出冻结测试结果和来源；[源码对照](docs/odebrain_adaptation.md)、[重跑步骤](docs/odebrain_github_v2_rerun.md)说明 HMS 适配的范围。新版汇报 PPT 由汇报方本地保存，不在本仓库发布。
+- 同一患者互斥测试集含 22,638 个窗口、389 位患者。窗口 KL：时频融合 `1.0530`、ODEBrain v2 `1.0821`、TCN `1.2000`、GraphGRU `1.3611`。ODE 与融合的窗口 KL 差为 `0.0291`，按患者成组重采样的配对 95% 区间 `[-0.0364, 0.1006]`，没有证据表明 ODE 在六分类主指标上稳定胜出。记录等权 KL 的 ODE `1.0262` 与融合 `1.0300` 很接近，不能代替窗口指标。
+- 论文在 TUSZ 研究发作**检测**二分类和未来图预测；本项目在 HMS 研究六类专家票比例，不能直接比较两者分数。六类向量场图是模型潜在空间的检查线索，不是脑电传播或因果机制图。原始 HMS 数据、图缓存和训练检查点不进入 Git 仓库；正式检查点作为独立 Release 资源提供。
+
+## 初版归档状态（2026-11-12 13:35 Asia/Shanghai）
 
 - 106,800 条 HMS 元数据已全量审计，保留 106,587 个有效分类窗口；患者互斥 train/val/test 为 67,114/16,835/22,638 个窗口。官方训练数据 ZIP 已完整下载、校验和解压。全量 Spark 特征、MLlib LR/RF、36 次性能基准、五模型最终 train+val 重训、42/44/45 三种子、预测任务、六个动力学案例及三条消融测试均已完成。
 - 最终分类 seed 42 窗口等权 KL：时频融合 1.0530、TCN 1.2000、频谱 CNN 1.3228、GraphGRU 1.3611、ODEBrain-inspired HMS 1.6276。ODE 未在分类上领先；患者、EEG 记录等权及逐类指标见[正式结果](docs/formal_results.md)。消融是 train-only 加验证早停，与最终重训主表不能直接相减；测试集结果不用于配置选择。
@@ -71,4 +77,4 @@ export PYSPARK_PYTHON="$PWD/.venv/bin/python"
 
 分类按冻结测试预测分别报告窗口平均、患者等权和 EEG 记录 `eeg_id` 等权 KL；七模型的三种加权混淆矩阵、逐类 precision/recall/F1、OVR AUC 与误报率在 [辅助指标](results/classification_weighted_metrics.json)，定义和复算命令见 [口径说明](docs/classification_weighted_metrics.md)。[最终模型配对区间](results/refit/paired_kl_intervals.json)按患者成组重采样，只描述预先固定配置的表现，不用于从测试集选择配置。图预测 MAE 是独立辅助任务；标准化 MAE/MSE 和逐频带误差不是 Kaggle 六分类评分要求。初训消融、初训分歧分析与最终重训主表的测试数值不能直接相减。
 
-24 页[最终 PPTX](slides/ODEBrain_final.pptx) 和[最终 PDF](slides/ODEBrain_final.pdf) 均由真实实验结果与正式证据生成，主交付为 PDF；页数、渲染图和公开超链接已核对。实际公开资源位于 [GitHub 仓库](https://github.com/shogunexe/ODEBrain-HMS) 和 [v1 权重/案例图 ZIP](https://github.com/shogunexe/ODEBrain-HMS/releases/download/v1/odebrain_hms_resources_v1.zip)。旧 DRAFT 与 LOCAL_PREVIEW 只保留为过程记录，见 [导出验证](docs/pdf_export.md)。HMS 数据由 Kaggle 标注 CC BY-NC 4.0；来源与再分发边界见 [公开资源说明](docs/public_resources.md)。
+新版汇报 PPT 由汇报方本地保存，其数据见 [新版结果](docs/odebrain_github_v2_results.md)，权重见 [v2 Release](https://github.com/shogunexe/ODEBrain-HMS/releases/tag/v2)。原 24 页 [PPTX](slides/ODEBrain_final.pptx) 和 [PDF](slides/ODEBrain_final.pdf) 是 `legacy_v1` 的历史交付，不能用它们引用 v2 的数值。旧版权重/案例图仍在 [v1 Release](https://github.com/shogunexe/ODEBrain-HMS/releases/download/v1/odebrain_hms_resources_v1.zip)。DRAFT 与 LOCAL_PREVIEW 只保留为过程记录。HMS 数据由 Kaggle 标注 CC BY-NC 4.0；来源与再分发边界见 [公开资源说明](docs/public_resources.md)。
